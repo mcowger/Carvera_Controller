@@ -122,9 +122,9 @@ jobs:
         platform: [x64] # github hosted arm runners not standard yet
         include:
           - platform: x64
-            image: ubuntu-20.04
+            image: ubuntu-latest
           # - platform: aarch64
-          #   image: ubuntu-20.04
+          #   image: ubuntu-latest
     defaults:
       run:
         shell: bash
@@ -164,7 +164,7 @@ jobs:
 
   build-pypi-artifacts:
     name: build-python
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     permissions:
       id-token: write
 
