@@ -18,48 +18,48 @@ jobs:
       run:
         shell: bash
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Set up Python 3.12
-      uses: actions/setup-python@v5
-      with:
-        python-version: 3.12
-        architecture: ${{ matrix.arch }}
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.12
+          architecture: ${{ matrix.arch }}
 
-    - name: Install poetry and dependencies
-      uses: ./.github/actions/bootstrap-poetry
-      with:
-        os: windows
-    
-    - uses: git-for-windows/setup-git-for-windows-sdk@v1
-      with:
-        flavor: minimal
-      # We install the SDK so as to have access to the msgfmt.exe binary
-      # from the GNU gettext package.
+      - name: Install poetry and dependencies
+        uses: ./.github/actions/bootstrap-poetry
+        with:
+          os: windows
 
-    - name: "Install Windows-Mesa OpenGL DLL"
-      run: |
-        curl -L --output mesa.7z --url https://github.com/pal1000/mesa-dist-win/releases/download/24.2.5/mesa3d-24.2.5-release-msvc.7z
-        7z x mesa.7z -o*
-        powershell.exe mesa\\systemwidedeploy.cmd 1
+      - uses: git-for-windows/setup-git-for-windows-sdk@v1
+        with:
+          flavor: minimal
+        # We install the SDK so as to have access to the msgfmt.exe binary
+        # from the GNU gettext package.
 
-    - name: Generate version strings
-      run: |
-        poetry self add "poetry-dynamic-versioning[plugin]"
-        poetry dynamic-versioning
+      - name: "Install Windows-Mesa OpenGL DLL"
+        run: |
+          curl -L --output mesa.7z --url https://github.com/pal1000/mesa-dist-win/releases/download/24.2.5/mesa3d-24.2.5-release-msvc.7z
+          7z x mesa.7z -o*
+          powershell.exe mesa\\systemwidedeploy.cmd 1
 
-    - name: Build release
-      run: poetry run python scripts/build.py --os windows
+      - name: Generate version strings
+        run: |
+          poetry self add "poetry-dynamic-versioning[plugin]"
+          poetry dynamic-versioning
 
-    - name: Rename artifact
-      run: poetry run bash ./scripts/rename-release-file.sh windows
+      - name: Build release
+        run: poetry run python scripts/build.py --os windows
 
-    - name: Upload artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: windows-assets-${{ matrix.platform }}
-        path: ${{ github.workspace }}/dist/carveracontroller-community-*-windows-x64.exe
-        retention-days: 2
+      - name: Rename artifact
+        run: poetry run bash ./scripts/rename-release-file.sh windows
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-assets-${{ matrix.platform }}
+          path: ${{ github.workspace }}/dist/carveracontroller-community-*-windows-x64.exe
+          retention-days: 2
 
   build-macos-artifacts:
     name: build-macos-${{ matrix.platform }}
@@ -67,7 +67,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: [ Intel, AppleSilicon ]
+        platform: [Intel, AppleSilicon]
         include:
           - platform: Intel
             image: macos-13
@@ -77,41 +77,41 @@ jobs:
       run:
         shell: bash
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Set up Python 3.12
-      uses: actions/setup-python@v5
-      with:
-        python-version: 3.12
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.12
 
-    - name: Install poetry and dependencies
-      uses: ./.github/actions/bootstrap-poetry
-      with:
-        os: macos
-    
-    - name: Generate version strings
-      run: |
-        poetry self add "poetry-dynamic-versioning[plugin]"
-        poetry dynamic-versioning
+      - name: Install poetry and dependencies
+        uses: ./.github/actions/bootstrap-poetry
+        with:
+          os: macos
 
-    - name: Build release
-      run: poetry run python scripts/build.py --os macos
+      - name: Generate version strings
+        run: |
+          poetry self add "poetry-dynamic-versioning[plugin]"
+          poetry dynamic-versioning
 
-    - name: Install create-dmg
-      run: brew install create-dmg
+      - name: Build release
+        run: poetry run python scripts/build.py --os macos
 
-    - name: Create dmg file
-      run: ./scripts/create-dmg.sh
+      - name: Install create-dmg
+        run: brew install create-dmg
 
-    - name: Rename artifact
-      run: poetry run bash ./scripts/rename-release-file.sh macos
+      - name: Create dmg file
+        run: ./scripts/create-dmg.sh
 
-    - name: Upload artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: macos-assets-${{ matrix.platform }}
-        path: ${{ github.workspace }}/dist/carveracontroller-community-*.dmg
-        retention-days: 2
+      - name: Rename artifact
+        run: poetry run bash ./scripts/rename-release-file.sh macos
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-assets-${{ matrix.platform }}
+          path: ${{ github.workspace }}/dist/carveracontroller-community-*.dmg
+          retention-days: 2
 
   build-linux-artifacts:
     name: build-linux-${{ matrix.platform }}
@@ -119,7 +119,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: [ x64 ]  # github hosted arm runners not standard yet
+        platform: [x64] # github hosted arm runners not standard yet
         include:
           - platform: x64
             image: ubuntu-20.04
@@ -129,38 +129,38 @@ jobs:
       run:
         shell: bash
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Set up Python 3.12
-      uses: actions/setup-python@v5
-      with:
-        python-version: 3.12
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.12
 
-    - name: Install poetry and dependencies
-      uses: ./.github/actions/bootstrap-poetry
-      with:
-        os: linux
-    
-    - name: Install MTDev
-      run: sudo apt-get install -y mtdev-tools gettext
-    
-    - name: Generate version strings
-      run: |
-        poetry self add "poetry-dynamic-versioning[plugin]"
-        poetry dynamic-versioning
+      - name: Install poetry and dependencies
+        uses: ./.github/actions/bootstrap-poetry
+        with:
+          os: linux
 
-    - name: Build release
-      run: xvfb-run poetry run python scripts/build.py --os linux
+      - name: Install MTDev
+        run: sudo apt-get install -y mtdev-tools gettext
 
-    - name: Rename artifact
-      run: poetry run bash ./scripts/rename-release-file.sh linux
+      - name: Generate version strings
+        run: |
+          poetry self add "poetry-dynamic-versioning[plugin]"
+          poetry dynamic-versioning
 
-    - name: Upload artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: linux-assets
-        path: ${{ github.workspace }}/dist/carveracontroller-community-*.appimage
-        retention-days: 2
+      - name: Build release
+        run: xvfb-run poetry run python scripts/build.py --os linux
+
+      - name: Rename artifact
+        run: poetry run bash ./scripts/rename-release-file.sh linux
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-assets
+          path: ${{ github.workspace }}/dist/carveracontroller-community-*.appimage
+          retention-days: 2
 
   build-pypi-artifacts:
     name: build-python
@@ -172,31 +172,81 @@ jobs:
       run:
         shell: bash
     steps:
-    - uses: actions/checkout@v4
-      with:
-        fetch-depth: 0  # all history is required for the dynamic versioning plugin
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # all history is required for the dynamic versioning plugin
 
-    - name: Set up Python 3.12
-      uses: actions/setup-python@v5
-      with:
-        python-version: 3.12
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.12
 
-    - name: Install poetry and dependencies
-      uses: ./.github/actions/bootstrap-poetry
-      with:
-        os: linux
-    
-    - name: Add poetry-dynamic-versioning plugin
-      run: poetry self add "poetry-dynamic-versioning[plugin]"
+      - name: Install poetry and dependencies
+        uses: ./.github/actions/bootstrap-poetry
+        with:
+          os: linux
 
-    - name: Build python package
-      run: poetry build
+      - name: Add poetry-dynamic-versioning plugin
+        run: poetry self add "poetry-dynamic-versioning[plugin]"
 
-    - name: Publish package to PyPI
-      uses: pypa/gh-action-pypi-publish@release/v1
+      - name: Build python package
+        run: poetry build
+
+      - name: Publish package to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+
+  build-docker-images:
+    name: build-docker-images
+    needs: [build-linux-artifacts]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download Linux AppImage artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: linux-assets
+          path: ./artifacts/
+
+      - name: Copy AppImage to Docker build context
+        run: |
+          mkdir -p packaging_assets/Docker/artifacts/
+          cp ./artifacts/*.appimage packaging_assets/Docker/artifacts/
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # - name: Log in to GitHub Container Registry
+      #   uses: docker/login-action@v3
+      #   with:
+      #     registry: ghcr.io
+      #     username: ${{ github.actor }}
+      #     password: ${{ secrets.GITHUB_TOKEN }}
+
+      # - name: Extract metadata
+      #   id: meta
+      #   uses: docker/metadata-action@v5
+      #   with:
+      #     images: ghcr.io/${{ github.repository_owner }}/carvera-controller
+      #     tags: |
+      #       type=ref,event=tag
+      #       type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: packaging_assets/Docker
+          push: false
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          platforms: linux/amd64
 
   publish-release:
-    needs: [ build-windows-artifacts, build-macos-artifacts, build-linux-artifacts ]
+    needs:
+      [build-windows-artifacts, build-macos-artifacts, build-linux-artifacts]
     runs-on: ubuntu-latest
     permissions:
       contents: write
