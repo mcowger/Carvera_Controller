@@ -2,6 +2,7 @@
 __pycache__/
 *.py[cod]
 *$py.class
+*.so
 
 # Distribution / packaging
 build/
@@ -21,9 +22,12 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
-scripts/versionfile.txt
-scripts/backup/
+
+# Legacy build artifacts (removed in refactoring)
+scripts/
+packaging_assets/
 .buildozer/
+buildozer.spec
 dev-CHANGELOG.md
 
 # PyInstaller
@@ -56,7 +60,7 @@ cover/
 *.po~
 
 # PEP 582; used by e.g. github.com/David-OConnor/pyflow and github.com/pdm-project/pdm
-__pypackages__/
+# (moved to IDE section)
 
 # Environments
 .env
@@ -67,24 +71,109 @@ ENV/
 env.bak/
 venv.bak/
 
-# mypy
+# Type checking
 .mypy_cache/
 .dmypy.json
 dmypy.json
 
-# IDEs
+# Pyre type checker
+.pyre/
+
+# pytype static type analyzer
+.pytype/
+
+# Cython debug symbols
+cython_debug/
+
+# IDEs and Editors
 .idea/
 .vscode/
+*.swp
+*.swo
+*~
+.vim/
+.emacs.d/
+.sublime-project
+.sublime-workspace
 
-# appimage-builder related
-AppDir/
-appimage-build/
-AppDir.squashfs
-AppImageBuilder.yml
+# Jupyter Notebook
+.ipynb_checkpoints
 
-# Apple stuff
+# IPython
+profile_default/
+ipython_config.py
+
+# pyenv
+.python-version
+
+# pipenv
+Pipfile.lock
+
+# Poetry
+poetry.lock
+
+# pdm
+.pdm.toml
+
+# PEP 582
+__pypackages__/
+
+# Celery
+celerybeat-schedule
+celerybeat.pid
+
+# SageMath parsed files
+*.sage.py
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# Sphinx documentation
+docs/_build/
+
+# Operating System Files
 .DS_Store
-xcuserdata
-project.pbxproj*backup
-packaging_assets/ios/dist
-packaging_assets/ios/carveracontroller-ios/carveracontrollerpkg/*
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# Windows
+*.lnk
+
+# Linux
+*~
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+*.bak
+*.backup
+*.orig
+
+# CNC Controller specific
+# Test output files
+test_output/
+*.gcode.bak
+*.nc.bak
+
+# Machine connection logs
+connection_*.log
+machine_*.log
+
+# Temporary G-code files created during testing
+test_*.gcode
+test_*.nc
+temp_*.gcode
+temp_*.nc
