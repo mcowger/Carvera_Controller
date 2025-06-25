@@ -7,73 +7,177 @@ This repository contains a completely refactored, UI-free core library extracted
 ## 🎯 Purpose
 
 This core library enables developers to:
-- Build custom user interfaces for Carvera machines
-- Create automated CNC control applications
-- Integrate Carvera control into existing workflows
-- Develop headless CNC operations
+- **Build custom user interfaces** for Carvera machines using any framework
+- **Create automated CNC control applications** for production workflows
+- **Integrate Carvera control** into existing manufacturing systems
+- **Develop headless CNC operations** for remote or automated control
 
-## 📚 Documentation
+## 🏗️ Architecture
 
-For complete API documentation, examples, and usage guides, see:
-**[📖 CNC Core Library Documentation](README_CNC_CORE.md)**
+The library is organized into clean, focused modules:
+
+### **Core Modules**
+- **`cnc_core.py`** - G-code parser and CNC state management
+- **`cnc_controller.py`** - Main controller for machine communication
+- **`cnc_utils.py`** - Utility functions for common operations
+
+### **Communication Module**
+- **`communication/usb_stream.py`** - USB/Serial communication
+- **`communication/wifi_stream.py`** - WiFi/TCP communication and machine discovery
+- **`communication/xmodem.py`** - XMODEM file transfer protocol
+
+### **Testing & Examples**
+- **`tests/`** - Comprehensive unit tests (59 tests)
+- **`examples/`** - Real machine testing and usage demonstrations
 
 ## 🚀 Quick Start
+
+### **Basic Usage**
 
 ```python
 from cnc_controller import Controller, CONN_WIFI
 from cnc_core import CNC
 
-# Create instances
+# Create CNC instance
 cnc = CNC()
+
+# Create controller
 controller = Controller(cnc)
 
-# Connect and control
+# Connect to machine via WiFi
 controller.connect("192.168.1.100:2222", CONN_WIFI)
-controller.send_command("G28")  # Home
-controller.send_command("G0 X10 Y10")  # Move
+
+# Send basic commands
+controller.send_command("G28")  # Home all axes
+controller.send_command("G0 X10 Y10")  # Rapid move
+controller.send_command("G1 X20 Y20 F1000")  # Linear move with feed rate
+
+# Get machine status
+controller.get_status()
+
+# Disconnect
 controller.disconnect()
 ```
 
+### **G-code Parsing**
+
+```python
+from cnc_core import CNC
+
+cnc = CNC()
+
+# Parse G-code lines
+coordinates = cnc.parse_line("G1 X10 Y20 Z5 F1000", line_number=1)
+if coordinates:
+    print(f"Generated {len(coordinates)} coordinate points")
+
+# Access machine state
+print(f"Current position: X={cnc.x}, Y={cnc.y}, Z={cnc.z}")
+print(f"Feed rate: {cnc.feed}")
+print(f"Spindle speed: {cnc.speed}")
+
+# Get bounding box
+margins = cnc.get_margins()
+print(f"Bounding box: {margins}")
+```
+
+### **Machine Discovery**
+
+```python
+from communication.wifi_stream import MachineDetector
+
+detector = MachineDetector()
+detector.query_for_machines()
+
+# Wait for responses
+import time
+time.sleep(3)
+
+machines = detector.check_for_responses()
+if machines:
+    for machine in machines:
+        print(f"Found: {machine['machine']} at {machine['ip']}:{machine['port']}")
+```
+
+### **Advanced Operations**
+
+```python
+# Auto-leveling and probing
+controller.auto_command(
+    margin=True,
+    zprobe=True,
+    leveling=True,
+    i=5, j=5,  # 5x5 grid
+    goto_origin=True
+)
+
+# XYZ probe
+controller.xyz_probe(height=10.0, diameter=3.175)
+
+# Jog machine
+controller.jog(x=1, y=1, speed=50)
+
+# Set overrides
+controller.set_feed_scale(150)  # 150% feed rate
+controller.set_spindle_scale(80)  # 80% spindle speed
+```
+
+## 📋 Supported G-codes
+
+The library supports standard G-codes and Carvera-specific extensions:
+
+### **Motion Commands**
+- `G0` - Rapid positioning
+- `G1` - Linear interpolation
+- `G2` - Clockwise circular interpolation
+- `G3` - Counter-clockwise circular interpolation
+- `G4` - Dwell
+
+### **Coordinate Systems**
+- `G17/G18/G19` - Plane selection (XY/XZ/YZ)
+- `G20/G21` - Units (inches/millimeters)
+- `G90/G91` - Absolute/relative positioning
+- `G54-G59` - Work coordinate systems
+
+### **Canned Cycles**
+- `G81/G82/G83` - Drilling cycles
+- `G85/G86/G89` - Boring cycles
+
+### **Carvera-Specific Commands**
+- `M495` - Auto-leveling and probing
+- `M496.x` - Position commands (Clearance, Work Origin, Anchors)
+- `M321` - Laser mode
+- `M471` - Workpiece pairing
+
 ## ✨ Key Features
 
-- **Complete UI Elimination** - No Kivy or GUI dependencies
-- **Keep-Alive Functionality** - Prevents 5-second firmware timeout
-- **Full G-code Support** - Standard and Carvera-specific commands
-- **Multiple Communication** - USB/Serial and WiFi/TCP
-- **Machine Discovery** - Network discovery of available machines
-- **Auto-leveling & Probing** - Complete probing operations support
-- **4-Axis Support** - Full rotary axis functionality
-- **Comprehensive Testing** - 59 unit tests, all passing
-- **Modern Python** - Type hints, proper error handling, PEP 257 docs
+### **Core Functionality**
+- **Complete G-code Support** - Standard commands and Carvera-specific extensions
+- **Machine State Management** - Comprehensive CNC machine state tracking
+- **Path Calculation** - Real-time tool path calculation and coordinate interpolation
+- **4-Axis Support** - Full rotary axis functionality with proper kinematics
 
-## 🏗️ Original Community Controller Features
+### **Communication**
+- **Multiple Protocols** - USB/Serial and WiFi/TCP connections
+- **Keep-Alive Functionality** - Prevents 5-second firmware timeout disconnections
+- **Machine Discovery** - Network discovery of available CNC machines
+- **File Transfer** - XMODEM protocol support for file uploads/downloads
 
-The original UI-based community controller (now archived) included:
-* **3-axis** and advanced **probing** UI screens for various geometries (**corners**, **axis**, **bore/pocket**, **angles**) for use with a [true 3D touch probe](https://www.instructables.com/Carvera-Touch-Probe-Modifications/) (not the included XYZ probe block)
-* Options to **reduce** the **autolevel** probe **area** to avoid probing obstacles
-* **Tooltip support** for user guidance with over 110 tips and counting
-* **Background images** for bolt hole positions in probe/start screens; users can add their own too
-* Support for setting/changing to **custom tool numbers** beyond 1-6
-* Keyboard button based **jog movement** controls
-* **No dial-home** back to Makera
-* **Single portable binary** for Windows and Linux
-* **Laser Safety** prompt to **remind** operators to put on **safety glasses**
-* **Multiple developers** with their own **Carvera** machines _"drinking their own [software] champagne"_ daily and working to improve the machine's capabilities.
-* Various **Quality-of-life** improvements:
-   * **Controller config settings** (UI Density, screensaver disable, Allow MDI while machine running, virtual keyboard)
-   * **Enclosure light** and **External Ouput** switch toggle in the center control panel
-   * Machine **reconnect** functionality with stored last used **machine network address**
-   * **Set Origin** Screen pre-populated with **current** offset values
-   * **Collet Clamp/Unclamp** buttons in Tool Changer menu for the original Carvera
-   * Better file browser **upload-and-select** workflow
-   * **Previous** file browsing location is **reopened** and **previously** used locations stored to **quick access list**
-   * **Greater speed/feed** override scaling range from **10%** and up to **300%**
-   * **Improved** 3D gcode visualisations, including **correct rendering** of movements around the **A axis**
+### **Advanced Features**
+- **Auto-leveling & Probing** - Complete probing operations and mesh leveling
+- **Coordinate Systems** - Support for multiple work coordinate systems
+- **Tool Management** - Tool change operations and tool offset handling
+- **Emergency Controls** - Feed hold, soft reset, and alarm management
 
+### **Developer Experience**
+- **Zero UI Dependencies** - No Kivy, Qt, or GUI framework requirements
+- **Modern Python** - Type hints, proper error handling, PEP 257 documentation
+- **Comprehensive Testing** - 59 unit tests covering all functionality
+- **Real Machine Testing** - Safe validation scripts for actual hardware
 
-## 🔧 Installation
+## 📦 Installation
 
-### As a Python Package
+### **As a Python Package**
 
 ```bash
 # Clone the repository
@@ -87,32 +191,24 @@ git checkout mcowger/NoMoKivy
 pip install pyserial
 
 # Run tests
-python run_tests.py
+python tests/run_tests.py
 
-# Try the example
-python example_usage.py
+# Try the examples
+cd examples
+python quick_test.py 192.168.1.100
 ```
 
-### Using Poetry
+### **Using Poetry**
 
 ```bash
 # Install with poetry
 poetry install
 
 # Run tests
-poetry run python run_tests.py
+poetry run python tests/run_tests.py
 ```
 
-## 🖥️ Supported Systems
-
-The core library works on any system that supports Python 3.9+:
-
-- **Windows** 7 x64 or newer
-- **macOS** 10.15 or newer (Intel and Apple Silicon)
-- **Linux** with Python 3.9+ (x64, ARM64, Raspberry Pi)
-- **Any Python environment** with network or serial port access
-
-## 📦 Dependencies
+### **Dependencies**
 
 **Runtime:**
 - Python 3.9+
@@ -122,14 +218,44 @@ The core library works on any system that supports Python 3.9+:
 - pytest (for testing)
 - pytest-cov (for coverage)
 
+## 🌐 Communication Protocols
+
+### **WiFi/TCP Connection**
+```python
+# Connect to machine via WiFi
+controller.connect("192.168.1.100:2222", CONN_WIFI)
+```
+
+### **USB/Serial Connection**
+```python
+# Connect to machine via USB
+controller.connect("/dev/ttyUSB0", CONN_USB)  # Linux
+controller.connect("COM3", CONN_USB)          # Windows
+```
+
+### **Keep-Alive Functionality**
+
+The library automatically handles the Carvera firmware's 5-second timeout by:
+
+- **Automatic Status Queries**: Sends `?` commands every 0.2 seconds when idle
+- **Background Thread**: Runs keep-alive in a separate thread
+- **Smart Detection**: Only sends keep-alive when not actively running commands
+- **Diagnostic Support**: Optional diagnostic queries for troubleshooting
+
+```python
+# Keep-alive is automatic, but you can control the running state
+controller.set_running_state(True)   # Disable keep-alive during long operations
+controller.set_running_state(False)  # Re-enable keep-alive when idle
+```
+
 ## 🧪 Testing
 
-### Unit Tests
+### **Unit Tests**
 The library includes comprehensive unit tests:
 
 ```bash
 # Run all tests
-python run_tests.py
+python tests/run_tests.py
 
 # Or with pytest
 pytest tests/
@@ -146,7 +272,7 @@ pytest --cov=. tests/
 - Keep-alive functionality
 - Error handling scenarios
 
-### Real Machine Testing
+### **Real Machine Testing**
 Test scripts for validating against actual Carvera machines:
 
 ```bash
@@ -184,6 +310,15 @@ cd examples
 python discover_machines.py --test    # Find your machine
 python quick_test.py 192.168.1.100   # Quick validation
 ```
+
+## 🖥️ Supported Systems
+
+The core library works on any system that supports Python 3.9+:
+
+- **Windows** 7 x64 or newer
+- **macOS** 10.15 or newer (Intel and Apple Silicon)
+- **Linux** with Python 3.9+ (x64, ARM64, Raspberry Pi)
+- **Any Python environment** with network or serial port access
 
 ## 🔌 Integration
 
@@ -231,7 +366,7 @@ We welcome contributions to the CNC Controller Core Library! Here's how to get s
 
 3. **Run tests:**
    ```bash
-   python run_tests.py
+   python tests/run_tests.py
    ```
 
 ### Contributing Guidelines
@@ -248,6 +383,7 @@ We welcome contributions to the CNC Controller Core Library! Here's how to get s
 - **Protocol Extensions:** Add support for new machine features
 - **Performance:** Optimize G-code parsing and communication
 - **Testing:** Expand test coverage and add integration tests
+
 ## 🔗 Related Projects
 
 - **Original Carvera Controller:** The UI-based community controller (archived)
@@ -268,10 +404,10 @@ This project is licensed under the GPL-2.0 License - see the [LICENSE](LICENSE) 
 
 ## 📞 Support
 
-- **Documentation:** [CNC Core Library Docs](README_CNC_CORE.md)
-- **Examples:** See `example_usage.py` for working code examples
+- **Examples:** See `examples/` directory for working code examples and testing tools
 - **Issues:** Report bugs and feature requests via GitHub Issues
 - **Discussions:** Use GitHub Discussions for questions and ideas
+- **Testing:** Use `examples/quick_test.py` to validate your setup
 
 ## 🚀 Future Roadmap
 
