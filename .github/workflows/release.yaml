@@ -199,6 +199,15 @@ jobs:
     name: build-docker-images
     needs: [build-linux-artifacts]
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [x64,aarch64]
+        include:
+          - platform: x64
+            image: ubuntu-latest
+          - platform: aarch64
+            image: ubuntu-latest
     permissions:
       contents: read
       packages: write
@@ -208,7 +217,7 @@ jobs:
       - name: Download Linux AppImage artifacts
         uses: actions/download-artifact@v4
         with:
-          name: linux-assets
+          name: linux-assets-${{ matrix.platform }}
           path: ./artifacts/
 
       - name: Copy AppImage to Docker build context
@@ -247,7 +256,7 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          platforms: linux/amd64
+          platforms: linux/${{ matrix.platform }}
 
   publish-release:
     needs:
