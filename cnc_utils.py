@@ -9,41 +9,42 @@ import os
 import sys
 import hashlib
 import time
-from datetime import datetime
+import logging
+from datetime import datetime, timezone
 from typing import List, Union, Optional, Iterator
 
 
 def humansize(nbytes: Union[int, float]) -> str:
     """
     Convert bytes to human readable format.
-    
+
     Args:
         nbytes: Number of bytes
-        
+
     Returns:
         Human readable size string
     """
-    suffixes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB']
+    suffixes = ["B", "KB", "MB", "GB", "TB", "PB"]
     nbytes = int(nbytes)
     i = 0
     while nbytes >= 1024 and i < len(suffixes) - 1:
         nbytes /= 1024.0
         i += 1
-    f = ('%.2f' % nbytes).rstrip('0').rstrip('.')
-    return f'{f} {suffixes[i]}'
+    f = ("%.2f" % nbytes).rstrip("0").rstrip(".")
+    return f"{f} {suffixes[i]}"
 
 
 def humandate(date: Union[int, float]) -> str:
     """
     Convert timestamp to human readable date.
-    
+
     Args:
         date: Unix timestamp
-        
+
     Returns:
-        Human readable date string
+        Human readable date string in UTC
     """
-    return datetime.fromtimestamp(date).strftime("%Y-%m-%d %H:%M")
+    return datetime.fromtimestamp(date, tz=timezone.utc).strftime("%Y-%m-%d %H:%M")
 
 
 def second2hour(seconds: Union[int, float]) -> str:
@@ -74,13 +75,13 @@ def second2hour(seconds: Union[int, float]) -> str:
 def md5_file(filename: str) -> str:
     """
     Calculate MD5 hash of a file.
-    
+
     Args:
         filename: Path to file
-        
+
     Returns:
         MD5 hash as hexadecimal string
-        
+
     Raises:
         FileNotFoundError: If file doesn't exist
         IOError: If file cannot be read
@@ -100,21 +101,21 @@ def md5_file(filename: str) -> str:
 def xfrange(start: float, stop: float, steps: int) -> Iterator[float]:
     """
     Generate float range with specified number of steps.
-    
+
     Args:
         start: Start value
         stop: Stop value
         steps: Number of steps
-        
+
     Yields:
         Float values in the range
     """
     if steps <= 1:
         return
-        
+
     interval = (stop - start) / (steps - 1)
     i = 0
-    
+
     if interval == 0:
         for i in range(steps):
             yield start
@@ -124,18 +125,19 @@ def xfrange(start: float, stop: float, steps: int) -> Iterator[float]:
             i += 1
 
 
-def translate(value: float, left_min: float, left_max: float, 
-              right_min: float, right_max: float) -> float:
+def translate(
+    value: float, left_min: float, left_max: float, right_min: float, right_max: float
+) -> float:
     """
     Translate value from one range to another.
-    
+
     Args:
         value: Value to translate
         left_min: Minimum of source range
         left_max: Maximum of source range
         right_min: Minimum of target range
         right_max: Maximum of target range
-        
+
     Returns:
         Translated value
     """
@@ -163,7 +165,7 @@ def digitize_version(version: str) -> int:
     if not version:
         return 0
 
-    v_list = version.split('.')
+    v_list = version.split(".")
     if len(v_list) >= 3:
         return int(v_list[0]) * 1000000 + int(v_list[1]) * 1000 + int(v_list[2])
     elif len(v_list) == 2:
@@ -177,11 +179,11 @@ def digitize_version(version: str) -> int:
 def safe_float(value: str, default: float = 0.0) -> float:
     """
     Safely convert string to float.
-    
+
     Args:
         value: String value to convert
         default: Default value if conversion fails
-        
+
     Returns:
         Float value or default
     """
@@ -194,11 +196,11 @@ def safe_float(value: str, default: float = 0.0) -> float:
 def safe_int(value: str, default: int = 0) -> int:
     """
     Safely convert string to integer.
-    
+
     Args:
         value: String value to convert
         default: Default value if conversion fails
-        
+
     Returns:
         Integer value or default
     """
@@ -211,12 +213,12 @@ def safe_int(value: str, default: int = 0) -> int:
 def clamp(value: float, min_val: float, max_val: float) -> float:
     """
     Clamp value between minimum and maximum.
-    
+
     Args:
         value: Value to clamp
         min_val: Minimum value
         max_val: Maximum value
-        
+
     Returns:
         Clamped value
     """
@@ -226,36 +228,41 @@ def clamp(value: float, min_val: float, max_val: float) -> float:
 def find_serial_ports() -> List[str]:
     """
     Find available serial ports.
-    
+
     Returns:
         List of available serial port names
     """
     ports = []
-    
+
     # Try to use pyserial's list_ports if available
     try:
         import serial.tools.list_ports
+
         for port in serial.tools.list_ports.comports():
             ports.append(port.device)
         return ports
     except ImportError:
+        logging.getLogger(__name__).warning(
+            "pyserial not installed. Falling back to manual port detection."
+        )
         pass
-    
+
     # Fallback to manual detection
-    locations = ['/dev/ttyACM', '/dev/ttyUSB', '/dev/ttyS', 'COM']
-    
+    locations = ["/dev/ttyACM", "/dev/ttyUSB", "/dev/ttyS", "COM"]
+
     for prefix in locations:
         for i in range(32):
             device = f"{prefix}{i}"
             try:
                 # Check if device exists (Unix-like systems)
-                if prefix.startswith('/dev/'):
+                if prefix.startswith("/dev/"):
                     os.stat(device)
                     ports.append(device)
                 else:
                     # Windows COM ports - try to open
                     try:
                         import serial
+
                         s = serial.Serial(device)
                         s.close()
                         ports.append(device)
@@ -263,7 +270,7 @@ def find_serial_ports() -> List[str]:
                         pass
             except (OSError, ImportError):
                 pass
-    
+
     return ports
 
 
@@ -283,27 +290,28 @@ def validate_gcode_line(line: str) -> bool:
     line = line.strip().upper()
 
     # Skip comments
-    if line.startswith('(') or line.startswith(';') or line.startswith('%'):
+    if line.startswith("(") or line.startswith(";") or line.startswith("%"):
         return True
 
     # Check for G-code commands
     import re
-    gcode_pattern = re.compile(r'^[GM]\d+')
+
+    gcode_pattern = re.compile(r"^[GM]\d+")
     if gcode_pattern.match(line):
         return True
 
     # Check for coordinate commands (must have a number after the letter)
-    coord_pattern = re.compile(r'^[XYZABCUVWIJK][-+]?\d+\.?\d*')
+    coord_pattern = re.compile(r"^[XYZABCUVWIJK][-+]?\d+\.?\d*")
     if coord_pattern.match(line):
         return True
 
     # Check for other valid commands (must have a number after the letter)
-    other_pattern = re.compile(r'^[FSTN]\d+')
+    other_pattern = re.compile(r"^[FSTN]\d+")
     if other_pattern.match(line):
         return True
 
     # Check for special commands
-    if line.startswith(('$', '?', '!', '~', '@')):
+    if line.startswith(("$", "?", "!", "~", "@")):
         return True
 
     return False
@@ -312,28 +320,29 @@ def validate_gcode_line(line: str) -> bool:
 def parse_coordinate_string(coord_str: str) -> dict:
     """
     Parse coordinate string into dictionary.
-    
+
     Args:
         coord_str: Coordinate string like "X10.5 Y20.3 Z5.0"
-        
+
     Returns:
         Dictionary with coordinate values
     """
     coords = {}
     if not coord_str:
         return coords
-        
+
     import re
+
     # Match patterns like X10.5, Y-20.3, etc.
-    pattern = re.compile(r'([XYZABCUVWIJK])([-+]?\d*\.?\d*)')
+    pattern = re.compile(r"([XYZABCUVWIJK])([-+]?\d*\.?\d*)")
     matches = pattern.findall(coord_str.upper())
-    
+
     for axis, value in matches:
         try:
             coords[axis] = float(value)
         except ValueError:
             coords[axis] = 0.0
-            
+
     return coords
 
 
@@ -341,29 +350,29 @@ class FileWatcher:
     """
     Simple file watcher to detect changes.
     """
-    
+
     def __init__(self, filename: str):
         """
         Initialize file watcher.
-        
+
         Args:
             filename: Path to file to watch
         """
         self.filename = filename
         self.last_modified = 0
         self.update_timestamp()
-    
+
     def update_timestamp(self) -> None:
         """Update the last modified timestamp."""
         try:
             self.last_modified = os.path.getmtime(self.filename)
         except OSError:
             self.last_modified = 0
-    
+
     def has_changed(self) -> bool:
         """
         Check if file has changed since last check.
-        
+
         Returns:
             True if file has been modified
         """

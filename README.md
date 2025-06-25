@@ -27,7 +27,7 @@ The library is organized into clean, focused modules:
 - **`communication/xmodem.py`** - XMODEM file transfer protocol
 
 ### **Testing & Examples**
-- **`tests/`** - Comprehensive unit tests (59 tests)
+- **`tests/`** - Comprehensive unit tests (60 tests) including GCODE response parsing tests
 - **`examples/`** - Real machine testing and usage demonstrations
 
 ## 🚀 Quick Start
@@ -80,6 +80,45 @@ print(f"Spindle speed: {cnc.speed}")
 margins = cnc.get_margins()
 print(f"Bounding box: {margins}")
 ```
+
+### **GCODE Response Parsing**
+
+The CNC Controller now supports waiting for and validating responses from GCODE commands, ensuring reliable command execution:
+
+```python
+from cnc_controller import Controller, CONN_WIFI
+from cnc_core import CNC
+
+# Create controller
+cnc = CNC()
+controller = Controller(cnc)
+controller.connect("192.168.1.100:2222", CONN_WIFI)
+
+# Execute GCODE with automatic 'ok' validation (default behavior)
+result = controller.execute_gcode("G28")  # Home command
+
+if result == 'ok':
+    print("Homing successful!")
+elif result is None:
+    print("Timeout - machine may be busy")
+else:
+    print(f"Unexpected response: {result}")
+
+# Custom timeout for slow operations
+result = controller.execute_gcode("G28", timeout=60.0)
+
+# Disable response waiting when needed
+controller.execute_gcode("G0 X10 Y10", wait_for_ok=False)
+
+# Send any command with response waiting
+response = controller.send_command("G28", wait_for_response=True, timeout=30.0)
+```
+
+**Key Features:**
+- **Automatic GCODE Detection**: Commands starting with G/M automatically wait for 'ok' responses
+- **Configurable Timeouts**: Default 30-second timeout, customizable per command
+- **Robust Error Handling**: Timeout detection, unexpected response logging
+- **Backward Compatible**: Existing code continues to work unchanged
 
 ### **Machine Discovery**
 

@@ -11,8 +11,9 @@ import time
 import threading
 import logging
 from datetime import datetime
-from typing import Optional, Callable, Any, Dict, List, Union
+from typing import Optional, Union, List
 from queue import Queue, Empty
+from threading import Event
 
 from cnc_core import CNC
 
@@ -35,9 +36,16 @@ RX_BUFFER_SIZE = 128
 # Regular expressions for parsing responses
 GPAT = re.compile(r"[A-Za-z]\s*[-+]?\d+.*")
 FEEDPAT = re.compile(r"^(.*)[fF](\d+\.?\d+)(.*)$")
-STATUSPAT = re.compile(r"^<(\w*?),MPos:([+\-]?\d*\.\d*),([+\-]?\d*\.\d*),([+\-]?\d*\.\d*),WPos:([+\-]?\d*\.\d*),([+\-]?\d*\.\d*),([+\-]?\d*\.\d*),?(.*)>$")
-POSPAT = re.compile(r"^\[(...):([+\-]?\d*\.\d*),([+\-]?\d*\.\d*),([+\-]?\d*\.\d*):?(\d*)\]$")
+STATUSPAT = re.compile(
+    r"^<(\w*?),MPos:([+\-]?\d*\.\d*),([+\-]?\d*\.\d*),([+\-]?\d*\.\d*),WPos:([+\-]?\d*\.\d*),([+\-]?\d*\.\d*),([+\-]?\d*\.\d*),?(.*)>$"
+)
+POSPAT = re.compile(
+    r"^\[(...):([+\-]?\d*\.\d*),([+\-]?\d*\.\d*),([+\-]?\d*\.\d*):?(\d*)\]$"
+)
 TLOPAT = re.compile(r"^\[(...):([+\-]?\d*\.\d*)\]$")
+
+# Pattern to detect GCODE commands (G or M commands)
+GCODE_PATTERN = re.compile(r"^\s*[GM]\d+", re.IGNORECASE)
 DOLLARPAT = re.compile(r"^\[G\d* .*\]$")
 SPLITPAT = re.compile(r"[:,]")
 VARPAT = re.compile(r"^\$(\d+)=(\d*\.?\d*) *\(?.*")
@@ -58,71 +66,76 @@ NOT_CONNECTED = "N/A"
 
 class ControllerError(Exception):
     """Base exception for controller errors."""
+
     pass
 
 
 class ConnectionError(ControllerError):
     """Exception raised when connection fails."""
+
     pass
 
 
 class CommandError(ControllerError):
     """Exception raised when command execution fails."""
+
     pass
 
 
 class Controller:
     """
     Main CNC controller class.
-    
+
     This class manages communication with CNC machines, handles command queuing,
     processes responses, and maintains machine state.
     """
 
-    def __init__(self, cnc: Optional[CNC] = None, logger: Optional[logging.Logger] = None):
+    def __init__(
+        self, cnc: Optional[CNC] = None, logger: Optional[logging.Logger] = None
+    ):
         """
         Initialize the controller.
-        
+
         Args:
             cnc: CNC instance to use, creates new one if None
             logger: Logger instance to use, creates new one if None
         """
         # Set up logging
         self.logger = logger or logging.getLogger(__name__)
-        
+
         # Initialize CNC
         self.cnc = cnc or CNC()
-        
+
         # Initialize communication streams
         self.usb_stream = USBStream()
         self.wifi_stream = WIFIStream()
         self.stream = None
         self.modem = None
         self.connection_type = CONN_WIFI
-        
+
         # Command history
         self.history = []
         self._history_pos = None
-        
+
         # Communication queues
         self.log = Queue()  # Log queue returned from machine
         self.queue = Queue()  # Command queue to be sent to machine
         self.load_buffer = Queue()
         self.load_buffer_size = 0
         self.total_buffer_size = 0
-        
+
         # Loading state
         self.load_num = 0
         self.load_eof = False
         self.load_err = False
         self.load_cancel = False
         self.load_cancel_sent = False
-        
+
         # Sending state
         self.send_num = 0
         self.send_eof = False
         self.send_cancel = False
-        
+
         # Threading
         self.thread = None
         self.stop_event = threading.Event()
@@ -131,14 +144,19 @@ class Controller:
         self._last_status_time = 0
         self._last_diagnose_time = 0
         self._running = False  # True when sending/loading commands
-        
+
         # Update flags
         self.pos_update = False
         self.diagnose_update = False
         self._probe_update = False
         self._g_update = False
         self._update = None
-        
+
+        # Response tracking for GCODE commands
+        self._response_event = Event()
+        self._last_response = None
+        self._waiting_for_response = False
+
         # Control flags
         self.clean_after = False
         self._run_lines = 0
@@ -150,11 +168,11 @@ class Controller:
         self._sumcline = 0
         self._last_feed = 0
         self._new_feed = 0
-        
+
         # Event handlers
         self._on_start = ""
         self._on_stop = ""
-        
+
         # State flags
         self.paused = False
         self.pausing = False
@@ -163,27 +181,27 @@ class Controller:
     def connect(self, address: str, connection_type: int = CONN_WIFI) -> bool:
         """
         Connect to CNC machine.
-        
+
         Args:
             address: Connection address (IP:port for WiFi, device path for USB)
             connection_type: CONN_WIFI or CONN_USB
-            
+
         Returns:
             True if connection successful, False otherwise
-            
+
         Raises:
             ConnectionError: If connection fails
         """
         try:
             self.connection_type = connection_type
-            
+
             if connection_type == CONN_WIFI:
                 self.stream = self.wifi_stream
                 success = self.wifi_stream.open(address)
             else:
                 self.stream = self.usb_stream
                 success = self.usb_stream.open(address)
-                
+
             if success:
                 self.logger.info(f"Connected to CNC machine at {address}")
                 # Start the keep-alive thread
@@ -191,7 +209,7 @@ class Controller:
                 return True
             else:
                 raise ConnectionError(f"Failed to connect to {address}")
-                
+
         except Exception as e:
             self.logger.error(f"Connection failed: {e}")
             raise ConnectionError(f"Connection failed: {e}") from e
@@ -199,7 +217,7 @@ class Controller:
     def disconnect(self) -> bool:
         """
         Disconnect from CNC machine.
-        
+
         Returns:
             True if disconnection successful
         """
@@ -219,71 +237,135 @@ class Controller:
     def is_connected(self) -> bool:
         """
         Check if connected to CNC machine.
-        
+
         Returns:
             True if connected, False otherwise
         """
         return self.stream is not None
 
-    def send_command(self, command: str) -> bool:
+    def send_command(
+        self, command: str, wait_for_response: bool = False, timeout: float = 30.0
+    ) -> Union[bool, str]:
         """
         Send a command to the CNC machine.
-        
+
         Args:
             command: Command string to send
-            
+            wait_for_response: Whether to wait for a response
+            timeout: Timeout in seconds for response (default 30.0)
+
         Returns:
-            True if command was sent successfully
-            
+            If wait_for_response is False: True if command was sent successfully
+            If wait_for_response is True: Response string or None if timeout
+
         Raises:
             CommandError: If command sending fails
         """
         if not self.is_connected():
             raise CommandError("Not connected to CNC machine")
-            
+
         try:
             if command and self.stream:
-                if not command.endswith('\n'):
-                    command += '\n'
-                    
+                if not command.endswith("\n"):
+                    command += "\n"
+
+                # Set up response waiting if requested
+                if wait_for_response:
+                    self._response_event.clear()
+                    self._last_response = None
+                    self._waiting_for_response = True
+
                 self.stream.send(command.encode())
                 self.logger.debug(f"Sent command: {command.strip()}")
-                
+
                 # Add to history
                 if command.strip() and command.strip() not in self.history:
                     self.history.append(command.strip())
                     if len(self.history) > 100:  # Limit history size
                         self.history.pop(0)
-                        
+
+                # Wait for response if requested
+                if wait_for_response:
+                    if self._response_event.wait(timeout):
+                        response = self._last_response
+                        self._waiting_for_response = False
+                        return response
+                    else:
+                        self._waiting_for_response = False
+                        self.logger.warning(
+                            f"Timeout waiting for response to command: {command.strip()}"
+                        )
+                        return None
+
                 return True
-                
+
         except Exception as e:
+            self._waiting_for_response = False
             self.logger.error(f"Failed to send command '{command}': {e}")
             raise CommandError(f"Failed to send command: {e}") from e
-            
+
         return False
 
-    def execute_gcode(self, line: str) -> bool:
+    def execute_gcode(
+        self, line: str, wait_for_ok: bool = True, timeout: float = 30.0
+    ) -> Union[bool, str]:
         """
         Execute a line as G-code if pattern matches.
 
         Args:
             line: G-code line to execute
+            wait_for_ok: Whether to wait for 'ok' response for GCODE commands
+            timeout: Timeout in seconds for response (default 30.0)
 
         Returns:
-            True on success, False otherwise
+            If wait_for_ok is False: True on success, False otherwise
+            If wait_for_ok is True: 'ok' if successful, None if timeout, False if not GCODE
         """
-        if isinstance(line, tuple) or \
-                line[0] in ("$", "!", "~", "?", "(", "@") or GPAT.match(line):
-            return self.send_command(line)
+        if (
+            isinstance(line, tuple)
+            or line[0] in ("$", "!", "~", "?", "(", "@")
+            or GPAT.match(line)
+        ):
+            # Check if this is a GCODE command that should wait for 'ok'
+            is_gcode = GCODE_PATTERN.match(line.strip())
+
+            if is_gcode and wait_for_ok:
+                response = self.send_command(
+                    line, wait_for_response=True, timeout=timeout
+                )
+                if response is None:
+                    self.logger.warning(
+                        f"Timeout waiting for response to GCODE: {line.strip()}"
+                    )
+                    return None
+                elif response.strip().lower() == "ok":
+                    self.logger.debug(f"GCODE command successful: {line.strip()}")
+                    return "ok"
+                else:
+                    self.logger.warning(
+                        f"Unexpected response to GCODE '{line.strip()}': {response}"
+                    )
+                    return response
+            else:
+                # Non-GCODE command or not waiting for response
+                return self.send_command(line)
         return False
 
-    def auto_command(self, margin: bool = False, zprobe: bool = False,
-                    zprobe_abs: bool = False, leveling: bool = False,
-                    goto_origin: bool = False, z_probe_offset_x: float = 0,
-                    z_probe_offset_y: float = 0, i: int = 3, j: int = 3,
-                    h: int = 5, buffer: bool = False,
-                    auto_level_offsets: List[float] = None) -> bool:
+    def auto_command(
+        self,
+        margin: bool = False,
+        zprobe: bool = False,
+        zprobe_abs: bool = False,
+        leveling: bool = False,
+        goto_origin: bool = False,
+        z_probe_offset_x: float = 0,
+        z_probe_offset_y: float = 0,
+        i: int = 3,
+        j: int = 3,
+        h: int = 5,
+        buffer: bool = False,
+        auto_level_offsets: List[float] = None,
+    ) -> bool:
         """
         Execute automatic commands like margin detection, probing, and leveling.
 
@@ -310,7 +392,10 @@ class Controller:
         if not (margin or zprobe or leveling or goto_origin):
             return False
 
-        if abs(self.cnc['xmin']) > self.cnc['worksize_x'] or abs(self.cnc['ymin']) > self.cnc['worksize_y']:
+        if (
+            abs(self.cnc["xmin"]) > self.cnc["worksize_x"]
+            or abs(self.cnc["ymin"]) > self.cnc["worksize_y"]
+        ):
             return False
 
         cmd = f"M495 X{self.cnc['xmin']:g}Y{self.cnc['ymin']:g}"
@@ -332,8 +417,12 @@ class Controller:
                 cmd = cmd + f"O{z_probe_offset_x:g}F{z_probe_offset_y:g}"
 
         if leveling:
-            width = self.cnc['xmax'] - (self.cnc['xmin'] + auto_level_offsets[1] + auto_level_offsets[0])
-            height = self.cnc['ymax'] - (self.cnc['ymin'] + auto_level_offsets[3] + auto_level_offsets[2])
+            width = self.cnc["xmax"] - (
+                self.cnc["xmin"] + auto_level_offsets[1] + auto_level_offsets[0]
+            )
+            height = self.cnc["ymax"] - (
+                self.cnc["ymin"] + auto_level_offsets[3] + auto_level_offsets[2]
+            )
             cmd = cmd + f"A{width:g}B{height:g}I{i:d}J{j:d}H{h:d}"
 
         if goto_origin:
@@ -344,7 +433,9 @@ class Controller:
 
         return self.send_command(cmd)
 
-    def xyz_probe(self, height: float = 9.0, diameter: float = 3.175, buffer: bool = False) -> bool:
+    def xyz_probe(
+        self, height: float = 9.0, diameter: float = 3.175, buffer: bool = False
+    ) -> bool:
         """
         Execute XYZ probe command.
 
@@ -378,6 +469,7 @@ class Controller:
             True if command was sent successfully
         """
         import time
+
         timestamp = str(int(time.time()) - time.timezone)
         return self.send_command(f"time {timestamp}")
 
@@ -418,7 +510,10 @@ class Controller:
         elif position == "Anchor2":
             cmd = "M496.4"
         elif position == "Path Origin":
-            if abs(self.cnc['xmin']) <= self.cnc['worksize_x'] and abs(self.cnc['ymin']) <= self.cnc['worksize_y']:
+            if (
+                abs(self.cnc["xmin"]) <= self.cnc["worksize_x"]
+                and abs(self.cnc["ymin"]) <= self.cnc["worksize_y"]
+            ):
                 cmd = f"M496.5 X{self.cnc['xmin']:g}Y{self.cnc['ymin']:g}"
 
         if cmd:
@@ -491,9 +586,14 @@ class Controller:
         """Request current position."""
         return self.send_command("$#")
 
-    def jog(self, x: Optional[float] = None, y: Optional[float] = None,
-            z: Optional[float] = None, a: Optional[float] = None,
-            speed: Optional[float] = None) -> bool:
+    def jog(
+        self,
+        x: Optional[float] = None,
+        y: Optional[float] = None,
+        z: Optional[float] = None,
+        a: Optional[float] = None,
+        speed: Optional[float] = None,
+    ) -> bool:
         """
         Jog machine axes.
 
@@ -608,7 +708,7 @@ class Controller:
         """
         self._last_status_time = time.time()
         self._last_diagnose_time = time.time()
-        line_buffer = b''
+        line_buffer = b""
 
         self.logger.debug("Stream I/O loop started")
 
@@ -621,8 +721,12 @@ class Controller:
 
             try:
                 # Determine if machine is running (sending/loading commands)
-                running = (self.send_num > 0 or self.load_num > 0 or
-                          self.pausing or self._running)
+                running = (
+                    self.send_num > 0
+                    or self.load_num > 0
+                    or self.pausing
+                    or self._running
+                )
 
                 # Send keep-alive status queries when not running
                 if not running:
@@ -632,8 +736,10 @@ class Controller:
                         self._last_status_time = current_time
 
                     # Send diagnostic query if enabled
-                    if (self.diagnosing and
-                        current_time - self._last_diagnose_time > DIAGNOSE_POLL):
+                    if (
+                        self.diagnosing
+                        and current_time - self._last_diagnose_time > DIAGNOSE_POLL
+                    ):
                         self._send_diagnose_query()
                         self._last_diagnose_time = current_time
                 else:
@@ -647,7 +753,8 @@ class Controller:
                         received_data = self.stream.recv()
                         if received_data:
                             line_buffer = self._process_received_data(
-                                received_data, line_buffer)
+                                received_data, line_buffer
+                            )
                     except Exception as e:
                         self.logger.debug(f"Error receiving data: {e}")
 
@@ -696,26 +803,26 @@ class Controller:
                 # Handle file transfer completion/cancellation
                 if line_buffer:
                     try:
-                        line_str = line_buffer.decode('utf-8', errors='ignore')
+                        line_str = line_buffer.decode("utf-8", errors="ignore")
                         self.log.put((MSG_NORMAL, line_str))
                     except Exception as e:
                         self.logger.debug(f"Error decoding line: {e}")
-                line_buffer = b''
+                line_buffer = b""
 
                 if byte_char == EOT:
                     self.load_eof = True
                 else:
                     self.load_err = True
 
-            elif byte_char == b'\n':
+            elif byte_char == b"\n":
                 # Process complete line
                 if line_buffer:
                     try:
-                        line_str = line_buffer.decode('utf-8', errors='ignore')
+                        line_str = line_buffer.decode("utf-8", errors="ignore")
                         self._parse_machine_response(line_str)
                     except Exception as e:
                         self.logger.debug(f"Error processing line: {e}")
-                line_buffer = b''
+                line_buffer = b""
 
             else:
                 # Add to line buffer
@@ -737,16 +844,21 @@ class Controller:
         # Add to log queue for external processing
         self.log.put((MSG_NORMAL, line))
 
+        # Check if we're waiting for a response
+        if self._waiting_for_response:
+            self._last_response = line
+            self._response_event.set()
+
         # Update machine state based on response
         # This is a simplified version - full implementation would parse
         # status reports, position updates, etc.
-        if line.startswith('<') and line.endswith('>'):
+        if line.startswith("<") and line.endswith(">"):
             # Status report - could parse and update CNC state here
             self.pos_update = True
-        elif line.startswith('[') and line.endswith(']'):
+        elif line.startswith("[") and line.endswith("]"):
             # Position or setting report
             self._g_update = True
-        elif 'error' in line.lower() or 'alarm' in line.lower():
+        elif "error" in line.lower() or "alarm" in line.lower():
             # Error or alarm
             self.log.put((MSG_ERROR, line))
 
