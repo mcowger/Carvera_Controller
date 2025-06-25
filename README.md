@@ -72,7 +72,9 @@ If you want a shortcut, consider using [AppImageLauncher](https://github.com/The
 
 ## Alternative Installation: Docker with noVNC
 
-Its also possible to run the controller under Docker, which is then access via a browser or VNC client. The docker image expects a volume `/config` which is used to store the configuration and log files.  If not provided, the application will run, but will not persist any configuration or log files.
+Its also possible to run the controller under Docker, which is then access via a browser or VNC client. This enables you to run the controller on a remote machine and access it from your local machine, and thus overcome the single-network-connection at a time limitation.
+
+The docker image expects a volume `/config` which is used to store the configuration and log files.  If not provided, the application will run, but will not persist any configuration or log files.
 
 The docker image is available on [GitHub Container Registry](https://ghcr.io/carvera-community/carvera-controller) and can be pulled with the following command:
 
