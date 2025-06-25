@@ -220,6 +220,7 @@ except GCodeParseError as e:
 
 ## Testing
 
+### Unit Tests
 Run the test suite to verify functionality:
 
 ```bash
@@ -233,6 +234,16 @@ The tests cover:
 - Communication protocols (mocked)
 - Utility functions
 - Error handling
+
+### Real Machine Testing
+Test against actual hardware:
+
+```bash
+cd examples
+python quick_test.py 192.168.1.100
+```
+
+See the `examples/` directory for comprehensive testing tools.
 
 ## API Reference
 

@@ -124,6 +124,7 @@ The core library works on any system that supports Python 3.9+:
 
 ## 🧪 Testing
 
+### Unit Tests
 The library includes comprehensive unit tests:
 
 ```bash
@@ -145,14 +146,44 @@ pytest --cov=. tests/
 - Keep-alive functionality
 - Error handling scenarios
 
+### Real Machine Testing
+Test scripts for validating against actual Carvera machines:
+
+```bash
+cd examples
+
+# Discover machines on network
+python discover_machines.py --test
+
+# Quick validation test
+python quick_test.py 192.168.1.100
+
+# Comprehensive test suite
+python test_real_machine.py --ip 192.168.1.100 --verbose
+```
+
+**Safety Features:**
+- Only minimal, safe operations (±1mm movements, brief spindle tests)
+- Proper dwell periods for spindle operations
+- Emergency stop capability
+- Automatic connection cleanup
+
+See [examples/TESTING_REAL_MACHINE.md](examples/TESTING_REAL_MACHINE.md) for detailed testing guide.
+
 ## 📋 Examples
 
-See `example_usage.py` for working examples of:
-- Machine discovery
-- G-code parsing
-- Controller operations
-- Keep-alive functionality
-- Error handling
+See the `examples/` directory for:
+- **Real machine testing scripts** - Safe validation against actual hardware
+- **Usage demonstrations** - Working code examples
+- **Machine discovery tools** - Network discovery utilities
+- **Comprehensive test suites** - Full functionality validation
+
+Quick start:
+```bash
+cd examples
+python discover_machines.py --test    # Find your machine
+python quick_test.py 192.168.1.100   # Quick validation
+```
 
 ## 🔌 Integration
 

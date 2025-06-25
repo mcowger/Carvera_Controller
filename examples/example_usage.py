@@ -9,6 +9,11 @@ for basic operations without any UI dependencies.
 import sys
 import time
 import logging
+import os
+
+# Add parent directory to path to import the CNC library
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from cnc_controller import Controller, CONN_WIFI, CONN_USB, ConnectionError, CommandError
 from cnc_core import CNC, GCodeParseError
 from cnc_utils import validate_gcode_line, parse_coordinate_string
