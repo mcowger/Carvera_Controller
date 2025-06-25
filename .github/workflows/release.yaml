@@ -6,7 +6,7 @@ on:
 jobs:
   build-windows-artifacts:
     #uncomment below to disable this job for testing
-    if: false
+    #if: false
     name: build-windows-${{ matrix.platform }}
     runs-on: windows-latest
     strategy:
@@ -65,7 +65,7 @@ jobs:
 
   build-macos-artifacts:
     #uncomment below to disable this job for testing
-    if: false
+    #if: false
     name: build-macos-${{ matrix.platform }}
     runs-on: ${{ matrix.image }}
     strategy:
@@ -170,7 +170,7 @@ jobs:
 
   build-pypi-artifacts:
     #uncomment below to disable this job for testing
-    if: false
+    #if: false
     name: build-python
     runs-on: ubuntu-latest
     permissions:
@@ -270,7 +270,7 @@ jobs:
 
   publish-release:
     #uncomment below to disable this job for testing
-    if: false
+    #if: false
     needs:
     #   [build-windows-artifacts, build-macos-artifacts, build-linux-artifacts]
       [build-linux-artifacts]
