@@ -125,12 +125,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: [x64,aarch64]
+        platform: [x64,arm64]
         include:
           - platform: x64
-            image: ubuntu-latest
-          - platform: aarch64
-            image: ubuntu-latest
+            image: ubuntu-24.04
+          - platform: arm64
+            image: ubuntu-24.04-arm
     defaults:
       run:
         shell: bash
@@ -208,14 +208,15 @@ jobs:
     #if: false
     name: build-docker-images
     needs: [build-linux-artifacts]
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.image }}
     strategy:
       fail-fast: false
       matrix:
-        platform: [x64]
         include:
           - platform: x64
-            image: ubuntu-latest
+            image: ubuntu-24.04
+          - platform: arm64
+            image: ubuntu-24.04-arm
     permissions:
       contents: read
       packages: write
@@ -269,7 +270,7 @@ jobs:
 
   publish-release:
     #uncomment below to disable this job for testing
-    # if: false
+    if: false
     needs:
     #   [build-windows-artifacts, build-macos-artifacts, build-linux-artifacts]
       [build-linux-artifacts]
