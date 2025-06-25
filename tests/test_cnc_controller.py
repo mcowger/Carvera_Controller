@@ -268,12 +268,12 @@ class TestCNCController(unittest.TestCase):
         self.controller.connect("192.168.1.100:2222", CONN_WIFI)
 
         # Set up margins for auto command
-        self.controller.cnc['xmin'] = 0
-        self.controller.cnc['ymin'] = 0
-        self.controller.cnc['xmax'] = 100
-        self.controller.cnc['ymax'] = 100
-        self.controller.cnc['worksize_x'] = 200
-        self.controller.cnc['worksize_y'] = 200
+        self.controller.cnc["xmin"] = 0
+        self.controller.cnc["ymin"] = 0
+        self.controller.cnc["xmax"] = 100
+        self.controller.cnc["ymax"] = 100
+        self.controller.cnc["worksize_x"] = 200
+        self.controller.cnc["worksize_y"] = 200
 
         # Test auto command
         result = self.controller.auto_command(margin=True, zprobe=True)
@@ -350,6 +350,7 @@ class TestCNCController(unittest.TestCase):
 
         # Give thread time to stop
         import time
+
         time.sleep(0.1)
 
         # Thread should be stopped
@@ -369,10 +370,13 @@ class TestCNCController(unittest.TestCase):
 
         # Give thread time to stop
         import time
+
         time.sleep(0.1)
 
         # Thread should be cleaned up
-        self.assertTrue(self.controller.thread is None or not self.controller.thread.is_alive())
+        self.assertTrue(
+            self.controller.thread is None or not self.controller.thread.is_alive()
+        )
 
 
 class TestControllerWithoutMocks(unittest.TestCase):
@@ -398,5 +402,5 @@ class TestControllerWithoutMocks(unittest.TestCase):
             controller.connect("invalid_address", CONN_WIFI)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

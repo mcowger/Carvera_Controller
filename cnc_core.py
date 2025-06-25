@@ -23,22 +23,24 @@ YZ = 2
 
 class CNCError(Exception):
     """Base exception class for CNC-related errors."""
+
     pass
 
 
 class GCodeParseError(CNCError):
     """Exception raised when G-code parsing fails."""
+
     pass
 
 
 class CNC:
     """
     CNC machine state and G-code parser.
-    
+
     This class manages the state of a CNC machine and provides functionality
     to parse G-code commands and calculate tool paths.
     """
-    
+
     # Machine configuration
     has_4axis = False
     inch = False
@@ -58,17 +60,24 @@ class CNC:
     drozeropad = 0
     curr_tool = 0
     coordinates = []  # list of coordinates
-    
+
     # Laser module offsets
     laser_names = ["laser_module_offset_x", "laser_module_offset_y"]
-    
+
     # Coordinate system names
     coord_names = [
-        "anchor1_x", "anchor1_y", "anchor2_offset_x", "anchor2_offset_y",
-        "anchor_width", "anchor_length", "worksize_x", "worksize_y", 
-        "rotation_offset_x", "rotation_offset_y"
+        "anchor1_x",
+        "anchor1_y",
+        "anchor2_offset_x",
+        "anchor2_offset_y",
+        "anchor_width",
+        "anchor_length",
+        "worksize_x",
+        "worksize_y",
+        "rotation_offset_x",
+        "rotation_offset_y",
     ]
-    
+
     # Machine variables and state
     vars: Dict[str, Union[float, int, str, List]] = {
         # Probe variables
@@ -78,31 +87,26 @@ class CNC:
         "prbcmd": "G38.2",
         "prbfeed": 10.0,
         "errline": "",
-        
         # Work coordinates
         "wx": 0.0,
         "wy": 0.0,
         "wz": 0.0,
         "wa": 0.0,
-        
         # Machine coordinates
         "mx": 0.0,
         "my": 0.0,
         "mz": 0.0,
         "ma": 0.0,
-        
         # Work coordinate offsets
         "wcox": 0.0,
         "wcoy": 0.0,
         "wcoz": 0.0,
-        
         # Feed and spindle
         "curfeed": 0.0,
         "curspindle": 0.0,
         "spindletemp": 0.0,
         "tarfeed": 0.0,
         "tarspindle": 0.0,
-        
         # Laser settings
         "lasermode": 0,
         "laserstate": 0,
@@ -111,7 +115,6 @@ class CNC:
         "laserscale": 0.0,
         "laser_module_offset_x": -37.3,
         "laser_module_offset_y": 4.8,
-        
         # Motion settings
         "max_delta": 0.0,
         "_camwx": 0.0,
@@ -130,24 +133,20 @@ class CNC:
         "program": "M0",
         "spindle": "M5",
         "coolant": "M9",
-        
         # Playback status
         "playedlines": 0,
         "playedpercent": 0,
         "playedseconds": 0,
-        
         # Tool changer
         "atc_state": 0,
         "tool": 0,
         "feed": 0.0,
         "rpm": 0.0,
-        
         # System status
         "wpvoltage": 0.0,
         "halt_reason": 1,
         "planner": 0,
         "rxbytes": 0,
-        
         # Override settings
         "OvFeed": 100,
         "OvRapid": 100,
@@ -157,11 +156,9 @@ class CNC:
         "_OvFeed": 100,
         "_OvRapid": 100,
         "_OvSpindle": 100,
-        
         # System info
         "version": "",
         "running": False,
-        
         # Basic coordinates
         "anchor1_x": -360.158,
         "anchor1_y": -234.568,
@@ -174,7 +171,6 @@ class CNC:
         "clearance_x": -75.0,
         "clearance_y": -3.0,
         "clearance_z": -3.0,
-        
         # Rotation coordinates
         "rotation_base_width": 330.0,
         "rotation_base_height": 102.5,
@@ -188,7 +184,6 @@ class CNC:
         "rotation_offset_x": -8.0,
         "rotation_offset_y": 37.5,
         "rotation_offset_z": 22.5,
-        
         # Diagnostic states - switches
         "sw_spindle": 0,
         "sw_spindlefan": 0,
@@ -197,13 +192,11 @@ class CNC:
         "sw_tool_sensor_pwr": 0,
         "sw_air": 0,
         "sw_wp_charge_pwr": 0,
-        
         # Diagnostic states - sensors/lights
         "sl_spindle": 0,
         "sl_spindlefan": 0,
         "sl_vacuum": 0,
         "sl_laser": 0,
-        
         # Diagnostic states - status
         "st_x_min": 0,
         "st_x_max": 0,
@@ -215,7 +208,7 @@ class CNC:
         "st_calibrate": 0,
         "st_cover": 0,
         "st_tool_sensor": 0,
-        "st_e_stop": 0
+        "st_e_stop": 0,
     }
 
     def __init__(self):
@@ -231,14 +224,19 @@ class CNC:
         """Set a CNC variable value."""
         CNC.vars[name] = value
 
-    def init_path(self, x: Optional[float] = None, y: Optional[float] = None, 
-                  z: Optional[float] = None, a: Optional[float] = None) -> None:
+    def init_path(
+        self,
+        x: Optional[float] = None,
+        y: Optional[float] = None,
+        z: Optional[float] = None,
+        a: Optional[float] = None,
+    ) -> None:
         """
         Initialize path tracking variables.
-        
+
         Args:
             x: Initial X position
-            y: Initial Y position  
+            y: Initial Y position
             z: Initial Z position
             a: Initial A (rotary) position
         """
@@ -258,13 +256,13 @@ class CNC:
         self.lval = 1
         self.tool = 0
 
-        self.absolute = True      # G90/G91 absolute/relative motion
+        self.absolute = True  # G90/G91 absolute/relative motion
         self.arcabsolute = False  # G90.1/G91.1 absolute/relative arc
-        self.retractz = True      # G98/G99 retract to Z or R
+        self.retractz = True  # G98/G99 retract to Z or R
         self.gcode = None
         self.plane = XY
-        self.feed = 0             # Actual gcode feed rate
-        self.speed = 0            # Spindle RPM
+        self.feed = 0  # Actual gcode feed rate
+        self.speed = 0  # Spindle RPM
         self.totalLength = 0.0
         self.totalTime = 0.0
         self.coordinates = []
@@ -286,7 +284,9 @@ class CNC:
         self.init_path()
         self.reset_margins()
 
-    def parse_line(self, line: str, line_no: int) -> Optional[List[Tuple[float, float, float, float]]]:
+    def parse_line(
+        self, line: str, line_no: int
+    ) -> Optional[List[Tuple[float, float, float, float]]]:
         """
         Parse a single line of G-code and return the resulting coordinates.
 
@@ -326,11 +326,17 @@ class CNC:
                 for xyz in xyzs:
                     if xyz != self.last_xyz:
                         self.last_xyz = xyz
-                        self.coordinates.append([
-                            xyz[0], xyz[1], xyz[2], xyz[3],
-                            0 if self.gcode == 0 or self.speed < 0.001 else 1,
-                            line_no, self.tool
-                        ])
+                        self.coordinates.append(
+                            [
+                                xyz[0],
+                                xyz[1],
+                                xyz[2],
+                                xyz[3],
+                                0 if self.gcode == 0 or self.speed < 0.001 else 1,
+                                line_no,
+                                self.tool,
+                            ]
+                        )
 
                 if self.gcode != 0:
                     self._path_margins(xyzs)
@@ -520,13 +526,13 @@ class CNC:
             Cy = 0.5 * (y + yv)
             AB = math.sqrt(ABx**2 + ABy**2)
             try:
-                OC = math.sqrt(self.rval**2 - AB**2/4.0)
+                OC = math.sqrt(self.rval**2 - AB**2 / 4.0)
             except ValueError:
                 OC = 0.0
             if self.gcode == 2:
                 OC = -OC  # CW
             if AB != 0.0:
-                return Cx - OC*ABy/AB, Cy + OC*ABx/AB
+                return Cx - OC * ABy / AB, Cy + OC * ABx / AB
             else:
                 # Error case
                 return x, y
@@ -554,12 +560,14 @@ class CNC:
         xyz = []
 
         # Execute g-code
-        if self.gcode in (0, 1):    # fast move or line
+        if self.gcode in (0, 1):  # fast move or line
             # If any axis is moving, interpolate all axes including A
             if self.dx != 0.0 or self.dy != 0.0 or self.dz != 0.0 or self.da != 0.0:
                 # Determine the number of interpolation steps based on the largest movement
                 max_delta = max(abs(self.dx), abs(self.dy), abs(self.dz), abs(self.da))
-                steps = max(int(max_delta / 0.5), 1)  # 0.5 is resolution, adjust as needed
+                steps = max(
+                    int(max_delta / 0.5), 1
+                )  # 0.5 is resolution, adjust as needed
                 for i in range(1, steps + 1):
                     t = i / steps
                     x = self.x + t * self.dx
@@ -568,11 +576,11 @@ class CNC:
                     a = self.a + t * self.da
                     xyz.append((x, y, z, a))
 
-        elif self.gcode in (2, 3):    # CW = 2, CCW = 3 circle
+        elif self.gcode in (2, 3):  # CW = 2, CCW = 3 circle
             uc, vc = self._motion_center()
             xyz.extend(self._calculate_arc_path(uc, vc))
 
-        elif self.gcode == 4:        # Dwell
+        elif self.gcode == 4:  # Dwell
             pass  # No movement for dwell
 
         elif self.gcode in (81, 82, 83, 85, 86, 89):  # Canned cycles
@@ -580,7 +588,9 @@ class CNC:
 
         return xyz
 
-    def _calculate_arc_path(self, uc: float, vc: float) -> List[Tuple[float, float, float, float]]:
+    def _calculate_arc_path(
+        self, uc: float, vc: float
+    ) -> List[Tuple[float, float, float, float]]:
         """
         Calculate path for arc movements (G02/G03).
 
@@ -600,13 +610,13 @@ class CNC:
         elif self.plane == XZ:
             u0, v0, w0, a0 = self.x, self.z, self.y, self.a
             u1, v1, w1, a1 = self.xval, self.zval, self.yval, self.aval
-            gcode = 5 - gcode    # flip 2-3 when XZ plane is used
+            gcode = 5 - gcode  # flip 2-3 when XZ plane is used
         else:
             u0, v0, w0, a0 = self.y, self.z, self.x, self.a
             u1, v1, w1, a1 = self.yval, self.zval, self.xval, self.aval
 
-        phi0 = math.atan2(v0-vc, u0-uc)
-        phi1 = math.atan2(v1-vc, u1-uc)
+        phi0 = math.atan2(v0 - vc, u0 - uc)
+        phi1 = math.atan2(v1 - vc, u1 - uc)
 
         try:
             sagitta = 1.0 - CNC.accuracy / self.rval
@@ -780,6 +790,10 @@ class CNC:
             Tuple of (xmin, ymin, zmin, xmax, ymax, zmax)
         """
         return (
-            CNC.vars["xmin"], CNC.vars["ymin"], CNC.vars["zmin"],
-            CNC.vars["xmax"], CNC.vars["ymax"], CNC.vars["zmax"]
+            CNC.vars["xmin"],
+            CNC.vars["ymin"],
+            CNC.vars["zmin"],
+            CNC.vars["xmax"],
+            CNC.vars["ymax"],
+            CNC.vars["zmax"],
         )

@@ -13,20 +13,20 @@ Main Components:
 Example Usage:
     from cnc_controller import Controller
     from cnc_core import CNC
-    
+
     # Create CNC instance
     cnc = CNC()
-    
+
     # Create controller
     controller = Controller(cnc)
-    
+
     # Connect to machine
     controller.connect("192.168.1.100:2222", CONN_WIFI)
-    
+
     # Send commands
     controller.send_command("G28")  # Home
     controller.send_command("G0 X10 Y10")  # Move
-    
+
     # Disconnect
     controller.disconnect()
 """
@@ -35,9 +35,20 @@ from .cnc_core import CNC, CNCError, GCodeParseError
 from .cnc_controller import Controller, ControllerError, ConnectionError, CommandError
 from .cnc_controller import CONN_USB, CONN_WIFI, MSG_NORMAL, MSG_ERROR, MSG_INTERIOR
 from .cnc_utils import (
-    humansize, humandate, second2hour, md5_file, xfrange, translate,
-    digitize_version, safe_float, safe_int, clamp, find_serial_ports,
-    validate_gcode_line, parse_coordinate_string, FileWatcher
+    humansize,
+    humandate,
+    second2hour,
+    md5_file,
+    xfrange,
+    translate,
+    digitize_version,
+    safe_float,
+    safe_int,
+    clamp,
+    find_serial_ports,
+    validate_gcode_line,
+    parse_coordinate_string,
+    FileWatcher,
 )
 
 # Import communication modules
@@ -58,19 +69,40 @@ __license__ = "GPL-2.0"
 
 __all__ = [
     # Core classes
-    'CNC', 'Controller',
-    
+    "CNC",
+    "Controller",
     # Exceptions
-    'CNCError', 'GCodeParseError', 'ControllerError', 'ConnectionError', 'CommandError',
-    
+    "CNCError",
+    "GCodeParseError",
+    "ControllerError",
+    "ConnectionError",
+    "CommandError",
     # Constants
-    'CONN_USB', 'CONN_WIFI', 'MSG_NORMAL', 'MSG_ERROR', 'MSG_INTERIOR',
-    
+    "CONN_USB",
+    "CONN_WIFI",
+    "MSG_NORMAL",
+    "MSG_ERROR",
+    "MSG_INTERIOR",
     # Communication
-    'USBStream', 'WIFIStream', 'MachineDetector', 'XMODEM', 'EOT', 'CAN',
-    
+    "USBStream",
+    "WIFIStream",
+    "MachineDetector",
+    "XMODEM",
+    "EOT",
+    "CAN",
     # Utilities
-    'humansize', 'humandate', 'second2hour', 'md5_file', 'xfrange', 'translate',
-    'digitize_version', 'safe_float', 'safe_int', 'clamp', 'find_serial_ports',
-    'validate_gcode_line', 'parse_coordinate_string', 'FileWatcher'
+    "humansize",
+    "humandate",
+    "second2hour",
+    "md5_file",
+    "xfrange",
+    "translate",
+    "digitize_version",
+    "safe_float",
+    "safe_int",
+    "clamp",
+    "find_serial_ports",
+    "validate_gcode_line",
+    "parse_coordinate_string",
+    "FileWatcher",
 ]

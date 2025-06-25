@@ -30,28 +30,28 @@ class TestCNCCore(unittest.TestCase):
     def test_variable_access(self):
         """Test CNC variable access."""
         # Test getting variables
-        self.assertEqual(self.cnc['wx'], 0.0)
-        self.assertEqual(self.cnc['wy'], 0.0)
-        
+        self.assertEqual(self.cnc["wx"], 0.0)
+        self.assertEqual(self.cnc["wy"], 0.0)
+
         # Test setting variables
-        self.cnc['wx'] = 10.5
-        self.cnc['wy'] = 20.3
-        self.assertEqual(self.cnc['wx'], 10.5)
-        self.assertEqual(self.cnc['wy'], 20.3)
+        self.cnc["wx"] = 10.5
+        self.cnc["wy"] = 20.3
+        self.assertEqual(self.cnc["wx"], 10.5)
+        self.assertEqual(self.cnc["wy"], 20.3)
 
     def test_parse_empty_line(self):
         """Test parsing empty lines and comments."""
         # Empty line
         result = self.cnc.parse_line("", 1)
         self.assertIsNone(result)
-        
+
         # Comment lines
         result = self.cnc.parse_line("(This is a comment)", 1)
         self.assertIsNone(result)
-        
+
         result = self.cnc.parse_line("; This is also a comment", 1)
         self.assertIsNone(result)
-        
+
         result = self.cnc.parse_line("% Program start", 1)
         self.assertIsNone(result)
 
@@ -63,7 +63,7 @@ class TestCNCCore(unittest.TestCase):
         self.assertEqual(self.cnc.x, 10)
         self.assertEqual(self.cnc.y, 20)
         self.assertEqual(self.cnc.z, 5)
-        
+
         # G1 linear move with feed rate
         result = self.cnc.parse_line("G1 X15 Y25 F1000", 2)
         self.assertIsNotNone(result)
@@ -75,7 +75,7 @@ class TestCNCCore(unittest.TestCase):
         """Test parsing arc movement commands."""
         # Set initial position
         self.cnc.parse_line("G0 X0 Y0", 1)
-        
+
         # G2 clockwise arc
         result = self.cnc.parse_line("G2 X10 Y0 I5 J0", 2)
         self.assertIsNotNone(result)
@@ -87,11 +87,11 @@ class TestCNCCore(unittest.TestCase):
         # G90 absolute positioning
         self.cnc.parse_line("G90", 1)
         self.assertTrue(self.cnc.absolute)
-        
+
         # G91 relative positioning
         self.cnc.parse_line("G91", 2)
         self.assertFalse(self.cnc.absolute)
-        
+
         # Test relative movement
         self.cnc.parse_line("G0 X0 Y0", 3)  # Set position
         self.cnc.parse_line("G91", 4)  # Relative mode
@@ -103,7 +103,7 @@ class TestCNCCore(unittest.TestCase):
         """Test parsing unit commands."""
         # G20 inches
         self.cnc.parse_line("G20", 1)
-        # G21 millimeters  
+        # G21 millimeters
         self.cnc.parse_line("G21", 2)
 
     def test_parse_plane_selection(self):
@@ -111,11 +111,11 @@ class TestCNCCore(unittest.TestCase):
         # G17 XY plane
         self.cnc.parse_line("G17", 1)
         self.assertEqual(self.cnc.plane, 0)  # XY
-        
+
         # G18 XZ plane
         self.cnc.parse_line("G18", 2)
         self.assertEqual(self.cnc.plane, 1)  # XZ
-        
+
         # G19 YZ plane
         self.cnc.parse_line("G19", 3)
         self.assertEqual(self.cnc.plane, 2)  # YZ
@@ -125,7 +125,7 @@ class TestCNCCore(unittest.TestCase):
         # Spindle speed
         self.cnc.parse_line("S1000", 1)
         self.assertEqual(self.cnc.speed, 1000)
-        
+
         # Feed rate
         self.cnc.parse_line("F500", 2)
         self.assertEqual(self.cnc.feed, 500)
@@ -135,7 +135,7 @@ class TestCNCCore(unittest.TestCase):
         # Tool selection
         self.cnc.parse_line("T1", 1)
         self.assertEqual(self.cnc.tool, 1)
-        
+
         # M321 laser tool
         self.cnc.parse_line("M321", 2)
         self.assertEqual(self.cnc.tool, 7)
@@ -159,11 +159,11 @@ class TestCNCCore(unittest.TestCase):
         # Check margins (allow for small interpolation differences)
         margins = self.cnc.get_margins()
         self.assertAlmostEqual(margins[0], -10, places=0)  # xmin
-        self.assertAlmostEqual(margins[1], -5, places=0)   # ymin
-        self.assertAlmostEqual(margins[2], -5, places=0)   # zmin
-        self.assertAlmostEqual(margins[3], 20, places=0)   # xmax
-        self.assertAlmostEqual(margins[4], 25, places=0)   # ymax
-        self.assertAlmostEqual(margins[5], 10, places=0)   # zmax
+        self.assertAlmostEqual(margins[1], -5, places=0)  # ymin
+        self.assertAlmostEqual(margins[2], -5, places=0)  # zmin
+        self.assertAlmostEqual(margins[3], 20, places=0)  # xmax
+        self.assertAlmostEqual(margins[4], 25, places=0)  # ymax
+        self.assertAlmostEqual(margins[5], 10, places=0)  # zmax
 
     def test_dwell_command(self):
         """Test dwell command parsing."""
@@ -181,14 +181,14 @@ class TestCNCCore(unittest.TestCase):
         """Test coordinate tracking during parsing."""
         # Clear coordinates
         self.cnc.coordinates = []
-        
+
         # Parse some movements
         self.cnc.parse_line("G0 X0 Y0 Z0", 1)
         self.cnc.parse_line("G1 X10 Y10 Z5 F1000", 2)
-        
+
         # Check that coordinates were recorded
         self.assertGreater(len(self.cnc.coordinates), 0)
-        
+
         # Each coordinate should have [x, y, z, a, color, line_no, tool]
         for coord in self.cnc.coordinates:
             self.assertEqual(len(coord), 7)
@@ -197,10 +197,10 @@ class TestCNCCore(unittest.TestCase):
         """Test motion interpolation for long moves."""
         # Set initial position
         self.cnc.parse_line("G0 X0 Y0", 1)
-        
+
         # Make a long move that should be interpolated
         result = self.cnc.parse_line("G1 X100 Y100", 2)
-        
+
         # Should have multiple interpolated points
         if result:
             self.assertGreater(len(result), 1)
@@ -218,10 +218,10 @@ class TestCNCUtilityMethods(unittest.TestCase):
         # Set some margins
         CNC.vars["xmin"] = -10
         CNC.vars["xmax"] = 10
-        
+
         # Reset margins
         self.cnc.reset_margins()
-        
+
         # Check they're reset to initial values
         self.assertEqual(CNC.vars["xmin"], 1000000.0)
         self.assertEqual(CNC.vars["xmax"], -1000000.0)
@@ -230,20 +230,20 @@ class TestCNCUtilityMethods(unittest.TestCase):
         """Test path initialization."""
         # Initialize with specific values
         self.cnc.init_path(x=10, y=20, z=5, a=45)
-        
+
         self.assertEqual(self.cnc.x, 10)
         self.assertEqual(self.cnc.y, 20)
         self.assertEqual(self.cnc.z, 5)
         self.assertEqual(self.cnc.a, 45)
-        
+
         # Initialize with defaults
         self.cnc.init_path()
-        
+
         self.assertEqual(self.cnc.x, 0)
         self.assertEqual(self.cnc.y, 0)
         self.assertEqual(self.cnc.z, 0)
         self.assertEqual(self.cnc.a, 0)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

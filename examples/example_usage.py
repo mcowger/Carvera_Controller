@@ -14,13 +14,21 @@ import os
 # Add parent directory to path to import the CNC library
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from cnc_controller import Controller, CONN_WIFI, CONN_USB, ConnectionError, CommandError
+from cnc_controller import (
+    Controller,
+    CONN_WIFI,
+    CONN_USB,
+    ConnectionError,
+    CommandError,
+)
 from cnc_core import CNC, GCodeParseError
 from cnc_utils import validate_gcode_line, parse_coordinate_string
 from communication.wifi_stream import MachineDetector
 
 # Set up logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger(__name__)
 
 
@@ -29,16 +37,18 @@ def discover_machines():
     print("Discovering CNC machines on the network...")
     detector = MachineDetector()
     detector.query_for_machines()
-    
+
     # Wait for responses
     time.sleep(3)
-    
+
     machines = detector.check_for_responses()
     if machines:
         print(f"Found {len(machines)} machine(s):")
         for machine in machines:
-            status = "BUSY" if machine['busy'] else "AVAILABLE"
-            print(f"  - {machine['machine']} at {machine['ip']}:{machine['port']} ({status})")
+            status = "BUSY" if machine["busy"] else "AVAILABLE"
+            print(
+                f"  - {machine['machine']} at {machine['ip']}:{machine['port']} ({status})"
+            )
         return machines
     else:
         print("No machines found on the network.")
@@ -48,9 +58,9 @@ def discover_machines():
 def parse_gcode_example():
     """Demonstrate G-code parsing capabilities."""
     print("\n=== G-code Parsing Example ===")
-    
+
     cnc = CNC()
-    
+
     # Example G-code program
     gcode_lines = [
         "G90",  # Absolute positioning
@@ -62,11 +72,11 @@ def parse_gcode_example():
         "G1 X20 Y0",  # Linear move
         "G0 Z5",  # Retract
     ]
-    
+
     print("Parsing G-code program:")
     for i, line in enumerate(gcode_lines, 1):
         print(f"  Line {i}: {line}")
-        
+
         # Validate line
         if validate_gcode_line(line):
             # Parse line
@@ -80,32 +90,36 @@ def parse_gcode_example():
                 print(f"    Parse error: {e}")
         else:
             print("    Invalid G-code line")
-    
+
     # Show final state
     print(f"\nFinal position: X={cnc.x:.2f}, Y={cnc.y:.2f}, Z={cnc.z:.2f}")
     print(f"Feed rate: {cnc.feed}")
     print(f"Spindle speed: {cnc.speed}")
-    
+
     # Show bounding box
     margins = cnc.get_margins()
-    print(f"Bounding box: X({margins[0]:.2f} to {margins[3]:.2f}), "
-          f"Y({margins[1]:.2f} to {margins[4]:.2f}), "
-          f"Z({margins[2]:.2f} to {margins[5]:.2f})")
-    
+    print(
+        f"Bounding box: X({margins[0]:.2f} to {margins[3]:.2f}), "
+        f"Y({margins[1]:.2f} to {margins[4]:.2f}), "
+        f"Z({margins[2]:.2f} to {margins[5]:.2f})"
+    )
+
     print(f"Total coordinates generated: {len(cnc.coordinates)}")
 
 
 def controller_example():
     """Demonstrate controller usage (without actual connection)."""
     print("\n=== Controller Example ===")
-    
+
     # Create CNC and controller instances
     cnc = CNC()
     controller = Controller(cnc, logger=logger)
-    
+
     print("Controller created successfully")
-    print(f"Connection status: {'Connected' if controller.is_connected() else 'Not connected'}")
-    
+    print(
+        f"Connection status: {'Connected' if controller.is_connected() else 'Not connected'}"
+    )
+
     # Example of command validation
     test_commands = [
         "G28",  # Home
@@ -114,14 +128,15 @@ def controller_example():
         "$H",  # Home command
         "INVALID",  # Invalid command
     ]
-    
+
     print("\nValidating commands:")
     for cmd in test_commands:
         # Just check if it's valid G-code without sending
         from cnc_utils import validate_gcode_line
+
         is_valid = validate_gcode_line(cmd)
         print(f"  '{cmd}': {'Valid G-code' if is_valid else 'Not G-code'}")
-    
+
     # Show command history (empty since we're not connected)
     history = controller.get_history()
     print(f"\nCommand history: {len(history)} commands")
@@ -130,7 +145,7 @@ def controller_example():
 def coordinate_parsing_example():
     """Demonstrate coordinate string parsing."""
     print("\n=== Coordinate Parsing Example ===")
-    
+
     coord_strings = [
         "X10.5 Y20.3 Z5.0",
         "X-15 Y25.7",
@@ -138,7 +153,7 @@ def coordinate_parsing_example():
         "F1000 S2000",
         "Invalid coordinate string",
     ]
-    
+
     for coord_str in coord_strings:
         coords = parse_coordinate_string(coord_str)
         print(f"'{coord_str}' -> {coords}")
@@ -200,33 +215,33 @@ def main():
     """Main example function."""
     print("CNC Controller Library Example")
     print("=" * 40)
-    
+
     # Run examples
     try:
         # Discover machines (will work if on same network as CNC machines)
         discover_machines()
-        
+
         # Parse G-code
         parse_gcode_example()
-        
+
         # Controller usage
         controller_example()
-        
+
         # Coordinate parsing
         coordinate_parsing_example()
-        
+
         # Keep-alive demonstration
         keep_alive_demonstration()
 
         # Simulated connection
         simulated_connection_example()
-        
+
     except KeyboardInterrupt:
         print("\nExample interrupted by user")
     except Exception as e:
         print(f"\nUnexpected error: {e}")
         return 1
-    
+
     print("\nExample completed successfully!")
     return 0
 

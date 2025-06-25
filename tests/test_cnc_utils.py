@@ -9,9 +9,19 @@ import unittest
 import tempfile
 import os
 from cnc_utils import (
-    humansize, humandate, second2hour, md5_file, xfrange, translate,
-    digitize_version, safe_float, safe_int, clamp, validate_gcode_line,
-    parse_coordinate_string, FileWatcher
+    humansize,
+    humandate,
+    second2hour,
+    md5_file,
+    xfrange,
+    translate,
+    digitize_version,
+    safe_float,
+    safe_int,
+    clamp,
+    validate_gcode_line,
+    parse_coordinate_string,
+    FileWatcher,
 )
 
 
@@ -46,20 +56,20 @@ class TestCNCUtils(unittest.TestCase):
     def test_md5_file(self):
         """Test MD5 file hashing."""
         # Create a temporary file
-        with tempfile.NamedTemporaryFile(mode='w', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", delete=False) as f:
             f.write("Hello, World!")
             temp_filename = f.name
-        
+
         try:
             # Calculate MD5
             md5_hash = md5_file(temp_filename)
             self.assertEqual(len(md5_hash), 32)  # MD5 is 32 hex characters
             self.assertIsInstance(md5_hash, str)
-            
+
             # Test with non-existent file
             with self.assertRaises(FileNotFoundError):
                 md5_file("non_existent_file.txt")
-                
+
         finally:
             os.unlink(temp_filename)
 
@@ -71,11 +81,11 @@ class TestCNCUtils(unittest.TestCase):
         self.assertEqual(len(result), 5)
         for i, val in enumerate(result):
             self.assertAlmostEqual(val, expected[i], places=5)
-        
+
         # Test single step
         result = list(xfrange(0, 10, 1))
         self.assertEqual(len(result), 0)
-        
+
         # Test zero interval
         result = list(xfrange(5, 5, 3))
         self.assertEqual(result, [5, 5, 5])
@@ -85,11 +95,11 @@ class TestCNCUtils(unittest.TestCase):
         # Test basic translation
         result = translate(5, 0, 10, 0, 100)
         self.assertEqual(result, 50)
-        
+
         # Test reverse translation
         result = translate(50, 0, 100, 0, 10)
         self.assertEqual(result, 5)
-        
+
         # Test negative ranges
         result = translate(0, -10, 10, 0, 20)
         self.assertEqual(result, 10)
@@ -135,7 +145,7 @@ class TestCNCUtils(unittest.TestCase):
         self.assertTrue(validate_gcode_line("(Comment)"))
         self.assertTrue(validate_gcode_line("; Comment"))
         self.assertTrue(validate_gcode_line("%"))
-        
+
         # Invalid G-code
         self.assertFalse(validate_gcode_line(""))
         self.assertFalse(validate_gcode_line("   "))
@@ -145,56 +155,57 @@ class TestCNCUtils(unittest.TestCase):
         """Test coordinate string parsing."""
         # Test basic coordinates
         coords = parse_coordinate_string("X10.5 Y20.3 Z5.0")
-        self.assertEqual(coords['X'], 10.5)
-        self.assertEqual(coords['Y'], 20.3)
-        self.assertEqual(coords['Z'], 5.0)
-        
+        self.assertEqual(coords["X"], 10.5)
+        self.assertEqual(coords["Y"], 20.3)
+        self.assertEqual(coords["Z"], 5.0)
+
         # Test negative coordinates
         coords = parse_coordinate_string("X-10 Y-20.5")
-        self.assertEqual(coords['X'], -10.0)
-        self.assertEqual(coords['Y'], -20.5)
-        
+        self.assertEqual(coords["X"], -10.0)
+        self.assertEqual(coords["Y"], -20.5)
+
         # Test mixed case
         coords = parse_coordinate_string("x5 y10 z15")
-        self.assertEqual(coords['X'], 5.0)
-        self.assertEqual(coords['Y'], 10.0)
-        self.assertEqual(coords['Z'], 15.0)
-        
+        self.assertEqual(coords["X"], 5.0)
+        self.assertEqual(coords["Y"], 10.0)
+        self.assertEqual(coords["Z"], 15.0)
+
         # Test empty string
         coords = parse_coordinate_string("")
         self.assertEqual(len(coords), 0)
-        
+
         # Test invalid values
         coords = parse_coordinate_string("X Y10")
-        self.assertEqual(coords['X'], 0.0)
-        self.assertEqual(coords['Y'], 10.0)
+        self.assertEqual(coords["X"], 0.0)
+        self.assertEqual(coords["Y"], 10.0)
 
     def test_file_watcher(self):
         """Test file watcher functionality."""
         # Create a temporary file
-        with tempfile.NamedTemporaryFile(mode='w', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", delete=False) as f:
             f.write("Initial content")
             temp_filename = f.name
-        
+
         try:
             # Create watcher
             watcher = FileWatcher(temp_filename)
-            
+
             # Initially should not have changed
             self.assertFalse(watcher.has_changed())
-            
+
             # Modify file
             import time
+
             time.sleep(0.1)  # Ensure timestamp difference
-            with open(temp_filename, 'w') as f:
+            with open(temp_filename, "w") as f:
                 f.write("Modified content")
-            
+
             # Should detect change
             self.assertTrue(watcher.has_changed())
-            
+
             # Should not detect change again immediately
             self.assertFalse(watcher.has_changed())
-            
+
         finally:
             os.unlink(temp_filename)
 
@@ -211,13 +222,13 @@ class TestUtilityEdgeCases(unittest.TestCase):
         """Test edge cases for humansize function."""
         self.assertEqual(humansize(1023), "1023 B")
         self.assertEqual(humansize(1025), "1 KB")
-        
+
     def test_translate_edge_cases(self):
         """Test edge cases for translate function."""
         # Same input and output ranges
         result = translate(5, 0, 10, 0, 10)
         self.assertEqual(result, 5)
-        
+
         # Zero-width input range (should handle gracefully)
         try:
             result = translate(5, 5, 5, 0, 10)
@@ -230,7 +241,7 @@ class TestUtilityEdgeCases(unittest.TestCase):
         # Zero steps
         result = list(xfrange(0, 10, 0))
         self.assertEqual(len(result), 0)
-        
+
         # Negative steps
         result = list(xfrange(0, 10, -1))
         self.assertEqual(len(result), 0)
@@ -239,15 +250,15 @@ class TestUtilityEdgeCases(unittest.TestCase):
         """Test edge cases for coordinate parsing."""
         # Test with extra spaces
         coords = parse_coordinate_string("  X10   Y20  ")
-        self.assertEqual(coords['X'], 10.0)
-        self.assertEqual(coords['Y'], 20.0)
-        
+        self.assertEqual(coords["X"], 10.0)
+        self.assertEqual(coords["Y"], 20.0)
+
         # Test with other axes
         coords = parse_coordinate_string("A90 B45 C30")
-        self.assertEqual(coords['A'], 90.0)
-        self.assertEqual(coords['B'], 45.0)
-        self.assertEqual(coords['C'], 30.0)
+        self.assertEqual(coords["A"], 90.0)
+        self.assertEqual(coords["B"], 45.0)
+        self.assertEqual(coords["C"], 30.0)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

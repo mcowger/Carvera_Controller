@@ -22,13 +22,14 @@ SOCKET_TIMEOUT = 0.3  # seconds
 
 class WiFiStreamError(Exception):
     """Exception raised for WiFi stream errors."""
+
     pass
 
 
 class MachineDetector:
     """
     Machine discovery class for finding CNC machines on the network.
-    
+
     This class uses UDP broadcast to discover available CNC machines
     on the local network.
     """
@@ -36,7 +37,7 @@ class MachineDetector:
     def __init__(self, logger: Optional[logging.Logger] = None):
         """
         Initialize machine detector.
-        
+
         Args:
             logger: Logger instance to use
         """
@@ -50,10 +51,10 @@ class MachineDetector:
     def is_machine_busy(self, addr: str) -> bool:
         """
         Check if machine is busy by attempting connection.
-        
+
         Args:
             addr: Machine IP address
-            
+
         Returns:
             True if machine is busy, False if available
         """
@@ -80,7 +81,7 @@ class MachineDetector:
     def check_for_responses(self) -> Optional[List[Dict[str, Any]]]:
         """
         Check for machine discovery responses.
-        
+
         Returns:
             List of discovered machines or None if still discovering
         """
@@ -89,28 +90,30 @@ class MachineDetector:
                 fields = []
                 try:
                     data, addr = self.sock.recvfrom(128)
-                    fields = data.decode('utf-8').split(',')
+                    fields = data.decode("utf-8").split(",")
                 except socket.timeout:
                     pass
                 except Exception as e:
                     self.logger.debug(f"Discovery response error: {e}")
-                    
+
                 if len(fields) > 3 and fields[0] not in self.machine_name_list:
                     self.machine_name_list.append(fields[0])
                     machine_info = {
-                        'machine': fields[0],
-                        'ip': fields[1],
-                        'port': int(fields[2]),
-                        'busy': fields[3] == '1'
+                        "machine": fields[0],
+                        "ip": fields[1],
+                        "port": int(fields[2]),
+                        "busy": fields[3] == "1",
                     }
                     self.machine_list.append(machine_info)
                     self.logger.info(f"Discovered machine: {machine_info}")
-                    
+
                 self.t = time.time()
                 return None
             else:
                 self.sock.close()
-                self.logger.info(f"Discovery complete, found {len(self.machine_list)} machines")
+                self.logger.info(
+                    f"Discovery complete, found {len(self.machine_list)} machines"
+                )
                 return self.machine_list
         except Exception as e:
             self.logger.error(f"Discovery error: {e}")
@@ -120,7 +123,7 @@ class MachineDetector:
 class WIFIStream:
     """
     WiFi/TCP communication stream for CNC machines.
-    
+
     This class handles TCP socket communication with CNC machines
     over WiFi/Ethernet connections.
     """
@@ -128,37 +131,39 @@ class WIFIStream:
     def __init__(self, logger: Optional[logging.Logger] = None):
         """
         Initialize WiFi stream.
-        
+
         Args:
             logger: Logger instance to use
         """
         self.logger = logger or logging.getLogger(__name__)
         self.socket = None
-        self.modem = XMODEM(self.getc, self.putc, 'xmodem8k')
+        self.modem = XMODEM(self.getc, self.putc, "xmodem8k")
 
         # Set up XMODEM logging
         handler = logging.StreamHandler()
         handler.setLevel(logging.WARNING)
-        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        formatter = logging.Formatter(
+            "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+        )
         handler.setFormatter(formatter)
         self.modem.log.addHandler(handler)
 
     def send(self, data: bytes) -> int:
         """
         Send data to the socket.
-        
+
         Args:
             data: Data to send
-            
+
         Returns:
             Number of bytes sent
-            
+
         Raises:
             WiFiStreamError: If not connected or send fails
         """
         if not self.socket:
             raise WiFiStreamError("Not connected")
-            
+
         try:
             return self.socket.send(data)
         except Exception as e:
@@ -167,16 +172,16 @@ class WIFIStream:
     def recv(self) -> bytes:
         """
         Receive data from the socket.
-        
+
         Returns:
             Received data bytes
-            
+
         Raises:
             WiFiStreamError: If not connected or receive fails
         """
         if not self.socket:
             raise WiFiStreamError("Not connected")
-            
+
         try:
             return self.socket.recv(BUFFER_SIZE)
         except Exception as e:
@@ -185,29 +190,29 @@ class WIFIStream:
     def open(self, address: str) -> bool:
         """
         Open TCP connection.
-        
+
         Args:
             address: Address in format "ip:port" or just "ip" (uses default port)
-            
+
         Returns:
             True if connection successful
-            
+
         Raises:
             WiFiStreamError: If connection fails
         """
         try:
             self.socket = socket.socket(family=socket.AF_INET, type=socket.SOCK_STREAM)
-            ip_port = address.split(':')
+            ip_port = address.split(":")
             ip = ip_port[0]
             port = int(ip_port[1]) if len(ip_port) > 1 else TCP_PORT
-            
+
             self.socket.settimeout(2)
             self.socket.connect((ip, port))
             self.socket.settimeout(SOCKET_TIMEOUT)
 
             self.logger.info(f"Connected to WiFi device at {ip}:{port}")
             return True
-            
+
         except Exception as e:
             self.logger.error(f"Failed to connect to {address}: {e}")
             raise WiFiStreamError(f"Failed to connect: {e}") from e
@@ -215,13 +220,13 @@ class WIFIStream:
     def close(self) -> bool:
         """
         Close TCP connection.
-        
+
         Returns:
             True if disconnection successful
         """
         if self.socket is None:
             return True
-            
+
         try:
             self.modem.clear_mode_set()
             self.socket.close()
@@ -236,13 +241,13 @@ class WIFIStream:
     def waiting_for_send(self) -> bool:
         """
         Check if ready to send data.
-        
+
         Returns:
             True if ready to send
         """
         if not self.socket:
             return False
-            
+
         try:
             _, write_sockets, _ = select.select([], [self.socket], [], 0)
             return len(write_sockets) > 0
@@ -252,13 +257,13 @@ class WIFIStream:
     def waiting_for_recv(self) -> bool:
         """
         Check if data is available to receive.
-        
+
         Returns:
             True if data available
         """
         if not self.socket:
             return False
-            
+
         try:
             read_sockets, _, _ = select.select([self.socket], [], [], 0)
             return len(read_sockets) > 0
@@ -268,20 +273,20 @@ class WIFIStream:
     def getc(self, size: int, timeout: float = 0.5) -> Optional[bytes]:
         """
         Get characters for XMODEM protocol.
-        
+
         Args:
             size: Number of bytes to read
             timeout: Timeout in seconds
-            
+
         Returns:
             Read bytes or None if timeout
         """
         if not self.socket:
             return None
-            
+
         t1 = time.time()
         data = bytearray()
-        
+
         while len(data) < size and time.time() - t1 <= timeout:
             if self.waiting_for_recv():
                 try:
@@ -299,11 +304,11 @@ class WIFIStream:
     def putc(self, data: bytes, timeout: float = 0.5) -> Optional[int]:
         """
         Put characters for XMODEM protocol.
-        
+
         Args:
             data: Data to write
             timeout: Timeout in seconds
-            
+
         Returns:
             Number of bytes written or None if failed
         """
@@ -324,8 +329,10 @@ class WIFIStream:
             True if upload successful
         """
         try:
-            with open(filename, 'rb') as stream:
-                result = self.modem.send(stream, md5=local_md5, retry=10, callback=callback)
+            with open(filename, "rb") as stream:
+                result = self.modem.send(
+                    stream, md5=local_md5, retry=10, callback=callback
+                )
             return result
         except Exception as e:
             self.logger.error(f"Upload failed: {e}")
@@ -344,8 +351,10 @@ class WIFIStream:
             True if download successful
         """
         try:
-            with open(filename, 'wb') as stream:
-                result = self.modem.recv(stream, md5=local_md5, retry=10, callback=callback)
+            with open(filename, "wb") as stream:
+                result = self.modem.recv(
+                    stream, md5=local_md5, retry=10, callback=callback
+                )
             return result
         except Exception as e:
             self.logger.error(f"Download failed: {e}")
