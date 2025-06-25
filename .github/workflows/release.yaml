@@ -202,11 +202,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: [x64,aarch64]
+        platform: [x64]
         include:
           - platform: x64
-            image: ubuntu-latest
-          - platform: aarch64
             image: ubuntu-latest
     permissions:
       contents: read
@@ -256,7 +254,8 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          platforms: linux/${{ matrix.platform }}
+          platforms: linux/${{ matrix.platform == 'x64' && 'amd64' || matrix.platform }}
+
 
   publish-release:
     needs:
