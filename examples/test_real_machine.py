@@ -14,7 +14,7 @@ SAFETY NOTES:
 - Includes emergency stop capability
 
 Usage:
-    python test_real_machine.py --ip 192.168.1.100 [--port 2222] [--verbose]
+    python test_real_machine.py --ip 192.168.1.100 [--port 2222] [--log DEBUG]
 """
 
 import sys
@@ -38,23 +38,24 @@ from communication.wifi_stream import MachineDetector
 class SafeMachineTest:
     """Safe testing class for real CNC machine operations."""
 
-    def __init__(self, ip: str, port: int = 2222, verbose: bool = False):
+    def __init__(self, ip: str, port: int = 2222, log_level: str = "INFO"):
         """
         Initialize the test suite.
 
         Args:
             ip: Machine IP address
             port: Machine port (default 2222)
-            verbose: Enable verbose logging
+            log_level: Logging level (DEBUG, INFO, WARN, ERROR, FATAL)
         """
         self.ip = ip
         self.port = port
-        self.verbose = verbose
+        self.log_level = log_level
 
         # Set up logging
-        log_level = logging.DEBUG if verbose else logging.INFO
+        numeric_level = getattr(logging, log_level.upper(), logging.INFO)
         logging.basicConfig(
-            level=log_level, format="%(asctime)s - %(levelname)s - %(message)s"
+            level=numeric_level,
+            format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
         )
         self.logger = logging.getLogger(__name__)
 
@@ -571,13 +572,16 @@ def main():
         "--port", type=int, default=2222, help="Machine port (default: 2222)"
     )
     parser.add_argument(
-        "--verbose", "-v", action="store_true", help="Enable verbose logging"
+        "--log",
+        choices=["DEBUG", "INFO", "WARN", "ERROR", "FATAL"],
+        default="INFO",
+        help="Logging level (default: INFO)",
     )
 
     args = parser.parse_args()
 
     # Create and run tests
-    tester = SafeMachineTest(args.ip, args.port, args.verbose)
+    tester = SafeMachineTest(args.ip, args.port, args.log)
 
     try:
         success = tester.run_all_tests()

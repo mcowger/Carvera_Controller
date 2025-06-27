@@ -302,9 +302,13 @@ class CNC:
         """
         # Skip empty lines and comments
         if len(line) == 0 or line[0] in ("%", "(", "#", ";"):
+            self.logger.debug(f"Line {line_no}: Skipping comment/empty line: {line!r}")
             return None
 
         try:
+            original_line = line
+            self.logger.debug(f"Line {line_no}: Parsing G-code: {original_line!r}")
+
             # Remove comments
             line = PARENPAT.sub("", line)
             line = SEMIPAT.sub("", line)
@@ -314,7 +318,10 @@ class CNC:
             line = CMDPAT.sub(r" \1", line).lstrip()
             cmds = line.split()
             if not cmds:
+                self.logger.debug(f"Line {line_no}: No commands after preprocessing")
                 return None
+
+            self.logger.debug(f"Line {line_no}: Parsed commands: {cmds}")
 
             # Start motion
             self._motion_start(cmds)
@@ -323,6 +330,9 @@ class CNC:
             xyzs = self._motion_path()
 
             if len(xyzs) > 0:
+                self.logger.debug(
+                    f"Line {line_no}: Generated {len(xyzs)} coordinate points"
+                )
                 for xyz in xyzs:
                     if xyz != self.last_xyz:
                         self.last_xyz = xyz
@@ -340,16 +350,21 @@ class CNC:
 
                 if self.gcode != 0:
                     self._path_margins(xyzs)
+            else:
+                self.logger.debug(f"Line {line_no}: No coordinate points generated")
 
             # End motion
             self._motion_end()
 
+            self.logger.info(f"Line {line_no}: Successfully parsed G-code command")
             return xyzs
 
         except Exception as e:
             # For invalid G-code, return empty list instead of raising exception
             # This allows the system to continue processing other lines
-            self.logger.warning(f"Failed to parse line {line_no}: {line} - {e}")
+            self.logger.error(
+                f"Line {line_no}: G-code parsing failed for '{original_line}': {e}"
+            )
             return []
 
     def _motion_start(self, cmds: List[str]) -> None:

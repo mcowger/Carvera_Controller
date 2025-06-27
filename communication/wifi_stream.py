@@ -162,11 +162,15 @@ class WIFIStream:
             WiFiStreamError: If not connected or send fails
         """
         if not self.socket:
+            self.logger.error("Attempted to send data while not connected")
             raise WiFiStreamError("Not connected")
 
         try:
-            return self.socket.send(data)
+            bytes_sent = self.socket.send(data)
+            self.logger.debug(f"WiFi sent {bytes_sent} bytes: {data!r}")
+            return bytes_sent
         except Exception as e:
+            self.logger.error(f"WiFi send failed: {e}")
             raise WiFiStreamError(f"Failed to send data: {e}") from e
 
     def recv(self) -> bytes:
@@ -180,11 +184,16 @@ class WIFIStream:
             WiFiStreamError: If not connected or receive fails
         """
         if not self.socket:
+            self.logger.error("Attempted to receive data while not connected")
             raise WiFiStreamError("Not connected")
 
         try:
-            return self.socket.recv(BUFFER_SIZE)
+            data = self.socket.recv(BUFFER_SIZE)
+            if data:
+                self.logger.debug(f"WiFi received {len(data)} bytes: {data!r}")
+            return data
         except Exception as e:
+            self.logger.error(f"WiFi receive failed: {e}")
             raise WiFiStreamError(f"Failed to receive data: {e}") from e
 
     def open(self, address: str) -> bool:
@@ -201,20 +210,29 @@ class WIFIStream:
             WiFiStreamError: If connection fails
         """
         try:
+            self.logger.debug(f"Creating TCP socket for connection to {address}")
             self.socket = socket.socket(family=socket.AF_INET, type=socket.SOCK_STREAM)
             ip_port = address.split(":")
             ip = ip_port[0]
             port = int(ip_port[1]) if len(ip_port) > 1 else TCP_PORT
 
+            self.logger.debug(f"Connecting to {ip}:{port} with 2s timeout")
             self.socket.settimeout(2)
             self.socket.connect((ip, port))
             self.socket.settimeout(SOCKET_TIMEOUT)
 
-            self.logger.info(f"Connected to WiFi device at {ip}:{port}")
+            self.logger.info(f"WiFi connection established to {ip}:{port}")
+            self.logger.debug(f"Socket timeout set to {SOCKET_TIMEOUT}s")
             return True
 
         except Exception as e:
-            self.logger.error(f"Failed to connect to {address}: {e}")
+            self.logger.error(f"WiFi connection failed to {address}: {e}")
+            if self.socket:
+                try:
+                    self.socket.close()
+                except:
+                    pass
+                self.socket = None
             raise WiFiStreamError(f"Failed to connect: {e}") from e
 
     def close(self) -> bool:

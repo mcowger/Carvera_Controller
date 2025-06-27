@@ -284,13 +284,19 @@ def validate_gcode_line(line: str) -> bool:
     Returns:
         True if line appears to be valid G-code
     """
+    logger = logging.getLogger(__name__)
+
     if not line or not line.strip():
+        logger.debug(f"G-code validation: Empty line rejected")
         return False
 
+    original_line = line
     line = line.strip().upper()
+    logger.debug(f"G-code validation: Checking line '{original_line}'")
 
     # Skip comments
     if line.startswith("(") or line.startswith(";") or line.startswith("%"):
+        logger.debug(f"G-code validation: Comment line accepted")
         return True
 
     # Check for G-code commands
@@ -298,22 +304,27 @@ def validate_gcode_line(line: str) -> bool:
 
     gcode_pattern = re.compile(r"^[GM]\d+")
     if gcode_pattern.match(line):
+        logger.debug(f"G-code validation: G/M command accepted")
         return True
 
     # Check for coordinate commands (must have a number after the letter)
     coord_pattern = re.compile(r"^[XYZABCUVWIJK][-+]?\d+\.?\d*")
     if coord_pattern.match(line):
+        logger.debug(f"G-code validation: Coordinate command accepted")
         return True
 
     # Check for other valid commands (must have a number after the letter)
     other_pattern = re.compile(r"^[FSTN]\d+")
     if other_pattern.match(line):
+        logger.debug(f"G-code validation: F/S/T/N command accepted")
         return True
 
     # Check for special commands
     if line.startswith(("$", "?", "!", "~", "@")):
+        logger.debug(f"G-code validation: Special command accepted")
         return True
 
+    logger.warning(f"G-code validation: Line '{original_line}' rejected as invalid")
     return False
 
 

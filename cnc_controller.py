@@ -194,6 +194,8 @@ class Controller:
         """
         try:
             self.connection_type = connection_type
+            conn_type_str = "WiFi" if connection_type == CONN_WIFI else "USB"
+            self.logger.info(f"Attempting {conn_type_str} connection to {address}")
 
             if connection_type == CONN_WIFI:
                 self.stream = self.wifi_stream
@@ -203,15 +205,19 @@ class Controller:
                 success = self.usb_stream.open(address)
 
             if success:
-                self.logger.info(f"Connected to CNC machine at {address}")
+                self.logger.info(f"Successfully connected to CNC machine at {address}")
+                self.logger.debug(
+                    f"Connection details: type={conn_type_str}, stream={type(self.stream).__name__}"
+                )
                 # Start the keep-alive thread
                 self._start_stream_thread()
                 return True
             else:
+                self.logger.error(f"Connection attempt failed to {address}")
                 raise ConnectionError(f"Failed to connect to {address}")
 
         except Exception as e:
-            self.logger.error(f"Connection failed: {e}")
+            self.logger.error(f"Connection failed with exception: {e}")
             raise ConnectionError(f"Connection failed: {e}") from e
 
     def disconnect(self) -> bool:
@@ -275,8 +281,12 @@ class Controller:
                     self._last_response = None
                     self._waiting_for_response = True
 
-                self.stream.send(command.encode())
-                self.logger.debug(f"Sent command: {command.strip()}")
+                encoded_command = command.encode()
+                self.stream.send(encoded_command)
+                self.logger.info(f"Executing command: {command.strip()}")
+                self.logger.debug(
+                    f"Raw data sent: {encoded_command!r} ({len(encoded_command)} bytes)"
+                )
 
                 # Add to history
                 if command.strip() and command.strip() not in self.history:
@@ -771,10 +781,11 @@ class Controller:
         """Send status query to machine for keep-alive."""
         try:
             if self.stream:
-                self.stream.send(b"?")
-                self.logger.debug("Sent keep-alive status query")
+                query_data = b"?"
+                self.stream.send(query_data)
+                self.logger.debug(f"Keep-alive: sent status query {query_data!r}")
         except Exception as e:
-            self.logger.debug(f"Failed to send status query: {e}")
+            self.logger.warning(f"Keep-alive failed to send status query: {e}")
 
     def _send_diagnose_query(self) -> None:
         """Send diagnostic query to machine."""
@@ -841,6 +852,8 @@ class Controller:
         if not line:
             return
 
+        self.logger.debug(f"Raw response received: {line!r}")
+
         # Add to log queue for external processing
         self.log.put((MSG_NORMAL, line))
 
@@ -848,6 +861,7 @@ class Controller:
         if self._waiting_for_response:
             self._last_response = line
             self._response_event.set()
+            self.logger.debug(f"Response matched waiting command: {line}")
 
         # Update machine state based on response
         # This is a simplified version - full implementation would parse
@@ -855,12 +869,17 @@ class Controller:
         if line.startswith("<") and line.endswith(">"):
             # Status report - could parse and update CNC state here
             self.pos_update = True
+            self.logger.debug(f"Status report parsed: {line}")
         elif line.startswith("[") and line.endswith("]"):
             # Position or setting report
             self._g_update = True
+            self.logger.debug(f"Position/setting report parsed: {line}")
         elif "error" in line.lower() or "alarm" in line.lower():
             # Error or alarm
             self.log.put((MSG_ERROR, line))
+            self.logger.error(f"Machine error/alarm received: {line}")
+        else:
+            self.logger.info(f"Machine response: {line}")
 
     def set_running_state(self, running: bool) -> None:
         """
